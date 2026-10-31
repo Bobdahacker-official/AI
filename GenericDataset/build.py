@@ -187,10 +187,19 @@ def validate(root: Path) -> dict[str, dict]:
 
 def main() -> None:
     random.seed(SEED)
-    for collection in ("GenericStories", "GenericConversations", "GenericInfo", "GenericCoding"):
-        target = ROOT / collection
-        if target.exists():
-            shutil.rmtree(target)
+    editions = {
+        "GenericStories": list(VERSIONS),
+        "GenericConversations": list(VERSIONS),
+        "GenericInfo": list(VERSIONS),
+        "GenericCoding": ["Mixed", *LANGUAGES],
+    }
+    for collection, names in editions.items():
+        parent = ROOT / collection
+        parent.mkdir(exist_ok=True)
+        for name in names:
+            target = parent / name
+            if target.exists():
+                shutil.rmtree(target)
     for edition_index, (version, count) in enumerate(VERSIONS.items()):
         offset = edition_index * 10000
         write_edition(ROOT / "GenericStories" / version, [story(offset + i) for i in range(count)], "story.v1")
