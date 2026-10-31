@@ -74,3 +74,49 @@ export, CLI, and local web interface are working. Training toward a useful
 friendly assistant remains ongoing. Runtime processes end if the cloud machine
 is shut down; resume from disk with `python -m astheral.manage start` using the
 prepared virtual environment.
+
+## Continued training and direct quality assessment
+
+The requested conversational outcome remains **unachieved**. Further work after
+the initial implementation increased CPU training windows to 512 tokens with
+batch size 2, preserved the original trained tokenizer, and added existing human
+multi-turn conversations from Google Taskmaster-1. See DATA_SOURCES.md for
+verified official revisions, licenses, filtering and counts. The combined corpus
+contains 8,285,208 training tokens. No pretrained model was introduced.
+
+The original run saved at step 102 (20,224 processed tokens). Continuing that
+same model and optimizer on the verified new corpus recorded the old corpus in
+checkpoint `data_history`. Its first combined-corpus validation loss was
+6.6445560455; at durable step 125 it was 6.1851220131, with 43,776 total processed
+tokens. These combined-corpus validation numbers use different records and
+window sizes from the initial report and cannot be directly compared to its
+Dolly-only validation values.
+
+The step-125 checkpoint contains AdamW state for all 226 parameter tensors,
+including optimizer step counters of 125. Measured full-model CPU throughput
+increased from roughly 38 tokens/second to roughly 54 tokens/second before
+validation/checkpoint overhead. All 11 software tests passed, including exact
+full-prefix versus incremental attention-cache comparisons and protection of
+the running trainer's process lock. No passing software test certifies assistant
+quality.
+
+Actual five-case generation assessments were completed at steps 100 and 125.
+Both fail conversational evaluation. For example, the step-125 answer to
+“What is your name?” begins `I, a friendly, a a a...` and devolves into repeated
+words. Greeting, arithmetic, explanation and context-retention checks also
+produce irrelevant/repetitive answers. The complete actual outputs remain in
+`runs/astheral/evaluations/step-100.json` and `step-125.json`.
+
+Training continues without a step or time cap. A separately running recurring
+evaluator assesses later saved checkpoints every 25 steps and records answers
+without manufacturing a success verdict. Both processes are visible through
+`python -m astheral.manage status`. They continue independently of a chat reply
+while the machine remains running. Their startup instructions were saved in
+the environment draft; this does not establish publication or a new-machine
+restoration test.
+
+A separate real step-125 weight export is retained at
+`exports/astheral-step125/weights.pt`, with SHA-256:
+`3f93659e66aafae83f00b3bb8fa90fc7642599e55f21ce0991fac2fef1768639`.
+The original step-43 export described above remains intact. Model exports and
+resumable checkpoints remain filesystem artifacts, not source Git objects.

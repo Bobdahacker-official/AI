@@ -31,3 +31,29 @@ and role delimiters are serialization, not fabricated response examples.
 This is an instruction dataset, not a broad language pretraining corpus. The
 checkpoint's general language and assistant ability must be assessed from real
 generation and held-out metrics. Parameter count alone does not establish either.
+
+## Human multi-turn conversations
+
+Continued training adds [Google Taskmaster-1](https://github.com/google-research-datasets/Taskmaster/blob/d92cb6af3005f1dc09c39e75e7daf4a04905e00b/TM-1-2019/README.md),
+the work of Bill Byrne, Karthik Krishnamoorthi, Chinnadhurai Sankar, Arvind
+Neelakantan, Amit Dubey, Kyu-Young Kim and Andy Cedilnik from Google LLC, released
+under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+
+The actual existing `self-dialogs.json` and `woz-dialogs.json` files are pinned to
+official revision `d92cb6af3005f1dc09c39e75e7daf4a04905e00b`. SHA-256 checksums:
+
+- self-dialogs: `1e590ed0ccee279e40c2fb9e083d3b9417477c6bfe35ce5b2277167698dd858d`
+- woz-dialogs: `cd3bc4e968487315d412c044d30af2bf0a4b33c3ef8b74c589f1e1fa832bf72f`
+
+`python -m astheral.corpus` verifies those files, preserves existing utterances and
+speaker roles, removes 10 duplicate conversations and excludes 13 conversations
+with ambiguous speaker labels. It never invents missing roles or answers. Whole
+conversations are split by content hash; individual turns do not cross partitions.
+The combined corpus has 27,656 training records (8,285,208 tokens) and 535 validation
+records (151,287 tokens). It reuses Astheral's independently trained original BPE
+tokenizer so its existing model and optimizer can continue without remapping IDs.
+
+Taskmaster contains task-oriented dialogue, including simulated bookings and
+orders written by human contributors. Its text does not connect Astheral to
+reservation, payment, or ordering systems. These examples improve dialogue
+coverage but are not evidence of factual accuracy or useful assistant behavior.

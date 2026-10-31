@@ -66,3 +66,16 @@ def test_checkpoint_roundtrip_and_optimizer_resume(tmp_path):
 def test_context_limit():
     with pytest.raises(ValueError):
         small()(torch.zeros(1, 17, dtype=torch.long))
+
+
+def test_cached_generation_matches_full_context():
+    model = small().eval()
+    tokens = torch.randint(0, 32, (1, 12))
+    with torch.inference_mode():
+        _, cache = model.forward_cached(tokens[:, :5])
+        for index in range(5, 12):
+            cached, cache = model.forward_cached(tokens[:, index:index + 1], cache)
+            full = model(tokens[:, :index + 1])[0][:, -1:]
+            torch.testing.assert_close(cached, full, atol=1e-6, rtol=1e-5)
+        multi, _ = model.forward_cached(tokens[:, 8:], model.forward_cached(tokens[:, :8])[1])
+        torch.testing.assert_close(multi, full, atol=1e-6, rtol=1e-5)

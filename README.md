@@ -21,6 +21,7 @@ python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
 .venv/bin/python scripts/download_data.py
 .venv/bin/python -m astheral.data
+.venv/bin/python -m astheral.corpus
 .venv/bin/python -m pytest -q
 ```
 
@@ -57,6 +58,26 @@ and leaves an existing trainer running. Check it with
 `runs/astheral/training.log`; the metrics and checkpoint files are the same.
 No process survives shutdown of the cloud machine; saved checkpoints support
 continuation on its next start.
+
+The manager also starts a recurring evaluator. It checks for later durable
+checkpoints and records actual conversation answers every 25 checkpoint steps.
+Its PID is exposed in manager status; output is in `runs/astheral/assessments.log`
+and `runs/astheral/evaluations/step-N.json`. It never fabricates a readiness verdict
+or terminates training because inference merely succeeded.
+
+The manager now uses 512-token windows and batch size 2 by default. It selects
+`data/combined` when present, which contains existing Dolly instructions and
+Google Taskmaster-1 multi-turn conversations. This increases observed token
+throughput and dialogue coverage. Override `--sequence`, `--batch`, `--data`, or
+`--save-every` explicitly for other experiments. A running trainer is left alone;
+new options take effect when starting a new process.
+
+To transition an existing Dolly-only checkpoint to the verified combined corpus,
+use `.venv/bin/python -m astheral.manage start --allow-data-change` after its old
+trainer has saved and exited. This explicit operation preserves weights and
+optimizer and records old corpus provenance in `data_history`; a tokenizer or
+architecture mismatch is always rejected. Ordinary resumes on the same corpus
+do not need that flag.
 
 `runs/astheral/metrics.jsonl` records actual optimizer steps, losses, gradient
 norms, tokens processed and step durations. `runs/astheral/status.json` records
@@ -121,3 +142,11 @@ quality. The real full-size training run and its metrics provide that evidence.
 
 See [DATA_SOURCES.md](DATA_SOURCES.md) for the official human-authored dataset,
 reproducible revision, checksum, split, attribution and license.
+
+For actual conversational evaluation run `.venv/bin/python -m astheral.evaluate`.
+It generates new answers for greeting, identity, arithmetic, explanation and
+context retention checks and saves the full answers to `runs/astheral/evaluations`.
+These prompts are evaluation only; they are never used as training examples.
+Review the answers themselves. The evaluator does not mark a checkpoint capable
+just because it produces tokens. Generation uses real attention KV caching,
+verified against full-prefix computation, to make these evaluations practical.

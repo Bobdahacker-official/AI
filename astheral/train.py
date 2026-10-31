@@ -40,6 +40,7 @@ def main():
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--device", choices=["cpu", "cuda"], default="cpu")
     parser.add_argument("--precision", choices=["bf16", "fp32"], default="bf16")
+    parser.add_argument("--allow-data-change", action="store_true", help="Continue own checkpoint on a new corpus only with exactly the same tokenizer")
     args = parser.parse_args()
     if min(args.sequence, args.batch, args.accumulate, args.threads, args.save_every, args.eval_batches) <= 0 or args.steps < 0:
         parser.error("Counts must be positive; steps may be zero")
@@ -69,10 +70,17 @@ def main():
         raise RuntimeError("Astheral must have at least 400 million parameters")
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=0.1, foreach=False)
     step, tokens_seen, checkpoint = 0, 0, out / "latest.pt"
+    data_history = []
     if checkpoint.exists():
         state = torch.load(checkpoint, map_location=args.device, weights_only=True, mmap=True)
-        if state["config"] != asdict(cfg) or state["data"] != fingerprint:
-            raise ValueError("Checkpoint architecture or training corpus/tokenizer mismatch")
+        if state["config"] != asdict(cfg) or state["data"]["tokenizer_sha256"] != tokenizer_hash:
+            raise ValueError("Checkpoint architecture or tokenizer mismatch")
+        data_history = state.get("data_history", [])
+        if state["data"] != fingerprint:
+            if not args.allow_data_change:
+                raise ValueError("Corpus changed; use --allow-data-change explicitly to continue training on the new corpus")
+            data_history.append({"through_step": state["step"], "data": state["data"]})
+            print(json.dumps({"event": "corpus_transition", "step": state["step"], "new_corpus": metadata["dataset"]}), flush=True)
         model.load_state_dict(state["model"])
         optimizer.load_state_dict(state["optimizer"])
         step, tokens_seen = state["step"], state["tokens_seen"]
@@ -110,7 +118,7 @@ def main():
         return total / args.eval_batches
 
     def save(validation):
-        atomic_save({"format": 1, "name": "Astheral", "config": asdict(cfg), "model": model.state_dict(), "optimizer": optimizer.state_dict(), "step": step, "tokens_seen": tokens_seen, "rng": torch.get_rng_state(), "data": fingerprint, "validation_loss": validation, "training_args": vars(args)}, checkpoint)
+        atomic_save({"format": 1, "name": "Astheral", "config": asdict(cfg), "model": model.state_dict(), "optimizer": optimizer.state_dict(), "step": step, "tokens_seen": tokens_seen, "rng": torch.get_rng_state(), "data": fingerprint, "data_history": data_history, "validation_loss": validation, "training_args": vars(args)}, checkpoint)
         temporary_status = out / "status.tmp"
         temporary_status.write_text(json.dumps({"step": step, "tokens_seen": tokens_seen, "parameters": model.parameter_count, "validation_loss": validation, "checkpoint": str(checkpoint), "updated_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}, indent=2) + "\n")
         temporary_status.replace(out / "status.json")

@@ -56,24 +56,28 @@ class Assistant:
         generator = torch.Generator().manual_seed(seed)
         result = []
         end = tokenizer.token_to_id("<|end|>")
-        for _ in range(max_tokens):
-            x = torch.tensor([ids[-self.model.cfg.context:]], dtype=torch.long)
-            with torch.autocast("cpu", dtype=torch.bfloat16):
-                logits, _ = self.model(x)
-            scores = logits[0, -1].float()
-            for marker in ("<|pad|>", "<|system|>", "<|user|>", "<|assistant|>"):
-                scores[tokenizer.token_to_id(marker)] = -torch.inf
-            if temperature == 0:
-                token = int(scores.argmax())
-            else:
-                scores /= temperature
-                cutoff = torch.topk(scores, min(50, scores.numel())).values[-1]
-                scores[scores < cutoff] = -torch.inf
-                token = int(torch.multinomial(scores.softmax(-1), 1, generator=generator))
-            if token == end:
-                break
-            ids.append(token)
-            result.append(token)
+        cache = None
+        with torch.autocast("cpu", dtype=torch.bfloat16):
+            for _ in range(max_tokens):
+                if cache is None or cache[0][0].shape[-2] >= self.model.cfg.context:
+                    x, cache = torch.tensor([ids[-self.model.cfg.context:]], dtype=torch.long), None
+                else:
+                    x = torch.tensor([[ids[-1]]], dtype=torch.long)
+                logits, cache = self.model.forward_cached(x, cache)
+                scores = logits[0, -1].float()
+                for marker in ("<|pad|>", "<|system|>", "<|user|>", "<|assistant|>"):
+                    scores[tokenizer.token_to_id(marker)] = -torch.inf
+                if temperature == 0:
+                    token = int(scores.argmax())
+                else:
+                    scores /= temperature
+                    cutoff = torch.topk(scores, min(50, scores.numel())).values[-1]
+                    scores[scores < cutoff] = -torch.inf
+                    token = int(torch.multinomial(scores.softmax(-1), 1, generator=generator))
+                if token == end:
+                    break
+                ids.append(token)
+                result.append(token)
         return {"response": tokenizer.decode(result, skip_special_tokens=True), "generated_tokens": len(result), "checkpoint_step": self.step, "tokens_seen": self.tokens_seen}
 
 

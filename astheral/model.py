@@ -42,20 +42,29 @@ class Block(nn.Module):
         inv = 1 / (10000 ** (torch.arange(0, cfg.width // cfg.heads, 2).float() / (cfg.width // cfg.heads)))
         self.register_buffer("inv_freq", inv, persistent=False)
 
-    def rotate(self, x):
-        phase = torch.outer(torch.arange(x.shape[-2], device=x.device), self.inv_freq)
+    def rotate(self, x, offset=0):
+        phase = torch.outer(torch.arange(offset, offset + x.shape[-2], device=x.device), self.inv_freq)
         cos, sin = phase.cos().to(x.dtype), phase.sin().to(x.dtype)
         even, odd = x[..., 0::2], x[..., 1::2]
         return torch.stack((even * cos - odd * sin, even * sin + odd * cos), dim=-1).flatten(-2)
 
-    def forward(self, x):
+    def forward(self, x, cache=None, use_cache=False):
         b, t, c = x.shape
         q, k, v = self.qkv(self.norm1(x)).view(b, t, 3, self.heads, c // self.heads).unbind(2)
         q, k, v = [a.transpose(1, 2) for a in (q, k, v)]
-        y = F.scaled_dot_product_attention(self.rotate(q), self.rotate(k), v, is_causal=True)
+        offset = 0 if cache is None else cache[0].shape[-2]
+        q, k = self.rotate(q, offset), self.rotate(k, offset)
+        if cache is not None:
+            k, v = torch.cat((cache[0], k), dim=-2), torch.cat((cache[1], v), dim=-2)
+        if offset and t > 1:
+            mask = torch.arange(k.shape[-2], device=x.device).unsqueeze(0) <= torch.arange(offset, offset + t, device=x.device).unsqueeze(1)
+            y = F.scaled_dot_product_attention(q, k, v, attn_mask=mask)
+        else:
+            y = F.scaled_dot_product_attention(q, k, v, is_causal=not offset)
         x = x + self.out(y.transpose(1, 2).contiguous().view(b, t, c))
         z = self.norm2(x)
-        return x + self.down(F.silu(self.gate(z)) * self.up(z))
+        result = x + self.down(F.silu(self.gate(z)) * self.up(z))
+        return (result, (k, v)) if use_cache else result
 
 
 class Astheral(nn.Module):
@@ -88,3 +97,13 @@ class Astheral(nn.Module):
         logits = F.linear(self.norm(x), self.embedding.weight)
         loss = None if targets is None else F.cross_entropy(logits.float().reshape(-1, self.cfg.vocab_size), targets.reshape(-1))
         return logits, loss
+
+    def forward_cached(self, tokens, cache=None):
+        offset = 0 if cache is None else cache[0][0].shape[-2]
+        if tokens.ndim != 2 or tokens.shape[1] + offset > self.cfg.context:
+            raise ValueError("Cached sequence exceeds the configured context")
+        x, updated = self.embedding(tokens), []
+        for index, block in enumerate(self.blocks):
+            x, entry = block(x, None if cache is None else cache[index], use_cache=True)
+            updated.append(entry)
+        return F.linear(self.norm(x[:, -1:]), self.embedding.weight), updated
