@@ -1,0 +1,13 @@
+{
+  "format": "jsonl",
+  "schema": "coding.v1",
+  "records": 400,
+  "splits": {
+    "train": 320,
+    "validation": 40,
+    "test": 40
+  },
+  "license": "CC0-1.0",
+  "origin": "original_local_generation",
+  "seed": 20261031
+}

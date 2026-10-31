@@ -1,0 +1,13 @@
+{
+  "format": "jsonl",
+  "schema": "story.v1",
+  "records": 300,
+  "splits": {
+    "train": 240,
+    "validation": 30,
+    "test": 30
+  },
+  "license": "CC0-1.0",
+  "origin": "original_local_generation",
+  "seed": 20261031
+}
