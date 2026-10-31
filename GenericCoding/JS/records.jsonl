@@ -1,0 +1,1 @@
+{"id":"code-js-001","language":"JS","prompt":"Write JavaScript that groups objects by their category property.","code":"export function groupByCategory(items) {\n  return items.reduce((groups, item) => {\n    const key = item.category;\n    (groups[key] ??= []).push(item);\n    return groups;\n  }, {});\n}\n","tags":["objects","reduce"],"license":"CC0-1.0"}

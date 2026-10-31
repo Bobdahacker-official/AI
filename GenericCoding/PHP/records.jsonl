@@ -1,0 +1,1 @@
+{"id":"code-php-001","language":"PHP","prompt":"Write a PHP function that normalizes an email address by trimming and lowercasing it.","code":"<?php\nfunction normalize_email(string $email): string {\n    return strtolower(trim($email));\n}\n","tags":["strings","normalization"],"license":"CC0-1.0"}

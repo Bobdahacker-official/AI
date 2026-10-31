@@ -1,0 +1,1 @@
+{"id":"code-ts-001","language":"TYPESCRIPT","prompt":"Write a TypeScript type and function for a completed task count.","code":"type Task = { done: boolean };\n\nexport function completedCount(tasks: Task[]): number {\n  return tasks.filter((task) => task.done).length;\n}\n","tags":["types","arrays"],"license":"CC0-1.0"}

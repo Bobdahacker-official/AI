@@ -1,0 +1,1 @@
+{"id":"code-css-001","language":"CSS","prompt":"Write CSS for a responsive card grid.","code":".card-grid {\n  display: grid;\n  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));\n  gap: 1rem;\n}\n\n.card {\n  padding: 1rem;\n  border: 1px solid #cbd5e1;\n  border-radius: 0.75rem;\n}\n","tags":["grid","responsive"],"license":"CC0-1.0"}

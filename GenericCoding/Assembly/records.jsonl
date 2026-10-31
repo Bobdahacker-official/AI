@@ -1,0 +1,1 @@
+{"id":"code-asm-001","language":"Assembly","prompt":"Write a NASM x86-64 function that returns the larger of two signed integers.","code":"global larger_value\nsection .text\nlarger_value:\n    mov rax, rdi\n    cmp rdi, rsi\n    jge done\n    mov rax, rsi\ndone:\n    ret\n","tags":["nasm","comparison"],"license":"CC0-1.0"}

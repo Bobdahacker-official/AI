@@ -1,0 +1,1 @@
+{"id":"code-html-001","language":"HTML","prompt":"Write semantic HTML for a product support contact card.","code":"<section aria-labelledby=\"support-title\">\n  <h2 id=\"support-title\">Support</h2>\n  <p>Get help with your account or order.</p>\n  <a href=\"mailto:support@example.com\">Email support</a>\n</section>\n","tags":["semantics","accessibility"],"license":"CC0-1.0"}

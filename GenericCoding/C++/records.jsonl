@@ -1,0 +1,1 @@
+{"id":"code-cpp-001","language":"C++","prompt":"Write a C++ function that returns the sum of a vector of integers.","code":"#include <numeric>\n#include <vector>\n\nint sum_values(const std::vector<int>& values) {\n    return std::accumulate(values.begin(), values.end(), 0);\n}\n","tags":["vectors","accumulation"],"license":"CC0-1.0"}

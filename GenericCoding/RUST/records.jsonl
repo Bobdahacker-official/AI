@@ -1,0 +1,1 @@
+{"id":"code-rust-001","language":"RUST","prompt":"Write Rust code that returns the longest string slice in a list.","code":"pub fn longest<'a>(values: &'a [&'a str]) -> Option<&'a str> {\n    values.iter().copied().max_by_key(|value| value.len())\n}\n","tags":["lifetimes","iterators"],"license":"CC0-1.0"}

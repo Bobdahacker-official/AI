@@ -1,0 +1,1 @@
+{"id":"code-py-001","language":"Python","prompt":"Write a function that returns the first non-empty trimmed string from a list.","code":"def first_text(values: list[str]) -> str | None:\n    for value in values:\n        cleaned = value.strip()\n        if cleaned:\n            return cleaned\n    return None\n","tags":["strings","iteration"],"license":"CC0-1.0"}

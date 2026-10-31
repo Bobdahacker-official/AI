@@ -1,27 +1,19 @@
 # GenericDataset card
 
-## Origin and scope
+## Editorial policy
 
-All dataset records are original local work. `build.py` does not connect to a network, read a source corpus, call a model, or import external data. It combines self-authored narrative, dialogue, information, and code components with a fixed seed, then writes complete JSONL files. The committed JSONL is therefore usable without running the builder.
+Each JSONL record in this release is fixed text written individually for this repository. New records must be written as new content, reviewed for wording and technical correctness, and added directly to the relevant JSONL file. Automated expansion, templated permutations, copied public corpora, and model-generated bulk text are not part of this dataset.
 
-The collections are designed for commercial model development, product prototyping, parser tests, curriculum exercises, and training workflows. They are not a substitute for independently verified factual, safety, legal, medical, or production-code sources.
+The collections are licensed for commercial use under CC0-1.0. They are concise, curated seeds for product teams that want clear provenance and can extend the files with their own reviewed material.
 
-## Record formats
+## Schemas
 
-`GenericStories` records contain `id`, `title`, `text`, `genre`, `themes`, `reading_level`, `word_count`, and `license`.
+Stories: `id`, `title`, `text`, `tags`, `license`.
 
-`GenericConversations` records contain `id`, `topic`, `skills`, `messages`, and `license`. `messages` is an ordered list of `{role, content}` objects and alternates user and assistant turns.
+Conversations: `id`, `messages`, `tags`, `license`; messages alternate `user` and `assistant`.
 
-`GenericInfo` records contain `id`, `domain`, `difficulty`, `question`, `answer`, `keywords`, and `license`.
+Info: `id`, `domain`, `question`, `answer`, `license`.
 
-`GenericCoding` records contain `id`, `language`, `prompt`, `code`, `tags`, `difficulty`, and `license`. Assembly uses NASM x86-64 syntax. `HTML` and `CSS` are standalone markup and style snippets. `JS` is modern ECMAScript, and `TYPESCRIPT` uses standard TypeScript syntax.
+Coding: `id`, `language`, `prompt`, `code`, `tags`, `license`.
 
-## Splits and validation
-
-Minimal, Balanced, and Big general collections contain 60, 300, and 1,200 records respectively. Each uses 80% training, 10% validation, and 10% test records. Language editions contain 200 records, while Mixed contains 400, with the same split ratio.
-
-The builder validates JSON syntax, exact split counts, unique record IDs, required fields, absence of placeholders, and Python syntax for Python examples. It writes SHA-256 digests and record counts to `manifest.json` after validation.
-
-## Content policy
-
-The dialogue records model clear, respectful, bounded assistance. The information collection emphasizes arithmetic, unit reasoning, everyday science, algorithms, and practical explanations. Code examples focus on small, readable utilities with original identifiers and comments. No third-party source, scraped text, benchmark answer, or pretrained-model output was used.
+Assembly examples use NASM x86-64 syntax. `JS` is ECMAScript, and `TYPESCRIPT` uses TypeScript syntax.
