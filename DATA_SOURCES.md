@@ -57,3 +57,30 @@ Taskmaster contains task-oriented dialogue, including simulated bookings and
 orders written by human contributors. Its text does not connect Astheral to
 reservation, payment, or ordering systems. These examples improve dialogue
 coverage but are not evidence of factual accuracy or useful assistant behavior.
+
+## Broader dialogue source investigated, not ingested
+
+The official [Anthropic HH-RLHF corpus](https://github.com/anthropics/hh-rlhf/tree/c72f5cee8eb7b4d2ea5617657f4430d5e333af07)
+was inspected as a broader conversation source. Its repository license is MIT,
+copyright 2022 Anthropic. Its preferred responses are **model-generated and
+human-ranked**, unlike the human-written Dolly and Taskmaster records used so
+far. Downloading this recorded text would not import any pretrained model weights
+or invoke a teacher API.
+
+The checked-out `.jsonl.gz` files are Git LFS pointers, not downloaded datasets.
+They were detected and rejected rather than used as training data. `git lfs pull`
+returned `Resource not accessible by integration`. The official public download
+redirected to `media.githubusercontent.com`, where the managed proxy denied the
+CONNECT request with HTTP 403. The live policy did not allow that hostname.
+
+The exact hostname addition was saved in the environment configuration draft,
+preserving the existing package-manager presets. It was not active in the running
+instance at the last check. A real download and checksum verification remain
+pending that network change; no HH-RLHF content has been added to Astheral's
+training corpus. The pointer for `helpful-base/train.jsonl.gz` declares expected
+object SHA-256 `518a5bf288456fc9f3b7c980c54116fba0c52f274d3f4d344675d83e4058f6f4`
+and size 16,200,131 bytes. That object has **not** yet been downloaded or verified.
+
+Stanford Alpaca's official documentation was also inspected. Its dataset is
+research-only/noncommercial (CC BY-NC 4.0), so it was not introduced as a fallback
+that would narrow Astheral's data-reuse options.

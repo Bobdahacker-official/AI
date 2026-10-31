@@ -178,6 +178,29 @@ retained for later experiments, not presented as a successful trained assistant.
 Trial checkpoints and full answer reports are under
 `runs/astheral-assistant-trial/` and `runs/astheral-all-targets-control/`.
 
+## Later checkpoints and the broader-corpus access blocker
+
+The same main trainer remained active through durable step 250, with 171,776
+processed tokens and combined-corpus validation loss 5.4402513504. Its answer-only
+reference loss was 6.8170437016. Actual generation still fails: it answered the
+arithmetic question with `TheYou are Astheral, a friendly, helpful and honest AI assistant.`
+This is recorded failure evidence, not conversational readiness.
+
+Broader assistant-dialogue data was researched to address the narrow ordering
+style emerging from Taskmaster. The official HH-RLHF repository was cloned, its
+license inspected, and its Git LFS pointer files rejected as non-data. LFS access
+failed at the integration endpoint. Diagnostic HEAD requests confirmed that the
+official public download redirected to `media.githubusercontent.com` and the
+proxy rejected that destination with HTTP 403. The live environment policy
+remained revision 1, enforced, without that hostname after a draft-only addition
+was saved. The broader corpus is not downloaded, verified, tokenized or trained
+on. DATA_SOURCES.md records exact provenance and the observed blocker.
+
+The current verified-data trainer and recurring evaluator continue running with
+no configured step/time limit. A dataset-access problem did not terminate the
+run, reset its weights, or cause placeholder data to be substituted. The saved
+network draft is separate from runtime application and publication.
+
 A separate real step-125 weight export is retained at
 `exports/astheral-step125/weights.pt`, with SHA-256:
 `3f93659e66aafae83f00b3bb8fa90fc7642599e55f21ce0991fac2fef1768639`.
