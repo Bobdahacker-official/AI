@@ -104,7 +104,7 @@ def main():
     resume_path = checkpoint if checkpoint.exists() else args.init_from
     if resume_path:
         state = torch.load(resume_path, map_location=args.device, weights_only=True, mmap=True)
-        if state["config"] != asdict(cfg) or state["data"]["tokenizer_sha256"] != tokenizer_hash:
+        if asdict(Config(**state["config"])) != asdict(cfg) or state["data"]["tokenizer_sha256"] != tokenizer_hash:
             raise ValueError("Checkpoint architecture or tokenizer mismatch")
         data_history = state.get("data_history", [])
         loss_history = state.get("loss_history", [])

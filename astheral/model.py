@@ -1,4 +1,4 @@
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 import math
 
 import torch
@@ -14,9 +14,11 @@ class Config:
     heads: int = 16
     hidden: int = 2816
     context: int = 512
+    tie_embeddings: bool = True
 
     def __post_init__(self):
-        if min(asdict(self).values()) < 1 or self.width % self.heads or (self.width // self.heads) % 2:
+        dimensions = [value for name, value in asdict(self).items() if name != "tie_embeddings"]
+        if min(dimensions) < 1 or self.width % self.heads or (self.width // self.heads) % 2:
             raise ValueError("Positive dimensions and an even, integral head dimension are necessary")
 
 
@@ -74,6 +76,7 @@ class Astheral(nn.Module):
         self.embedding = nn.Embedding(cfg.vocab_size, cfg.width)
         self.blocks = nn.ModuleList([Block(cfg) for _ in range(cfg.layers)])
         self.norm = RMSNorm(cfg.width)
+        self.output = None if cfg.tie_embeddings else nn.Linear(cfg.width, cfg.vocab_size, bias=False)
         self.apply(self.initialize)
         for block in self.blocks:
             nn.init.normal_(block.out.weight, std=0.02 / math.sqrt(2 * cfg.layers))
@@ -88,13 +91,23 @@ class Astheral(nn.Module):
     def parameter_count(self):
         return sum(p.numel() for p in self.parameters())
 
+    def untie_output(self):
+        if self.output is None:
+            self.output = nn.Linear(self.cfg.width, self.cfg.vocab_size, bias=False, device=self.embedding.weight.device, dtype=self.embedding.weight.dtype)
+            with torch.no_grad():
+                self.output.weight.copy_(self.embedding.weight)
+            self.cfg = replace(self.cfg, tie_embeddings=False)
+
+    def project(self, hidden):
+        return F.linear(hidden, self.embedding.weight) if self.output is None else self.output(hidden)
+
     def forward(self, tokens, targets=None):
         if tokens.ndim != 2 or tokens.shape[1] > self.cfg.context:
             raise ValueError("Expected [batch, sequence] within configured context")
         x = self.embedding(tokens)
         for block in self.blocks:
             x = block(x)
-        logits = F.linear(self.norm(x), self.embedding.weight)
+        logits = self.project(self.norm(x))
         loss = None if targets is None else F.cross_entropy(logits.float().reshape(-1, self.cfg.vocab_size), targets.reshape(-1))
         return logits, loss
 
@@ -106,4 +119,4 @@ class Astheral(nn.Module):
         for index, block in enumerate(self.blocks):
             x, entry = block(x, None if cache is None else cache[index], use_cache=True)
             updated.append(entry)
-        return F.linear(self.norm(x[:, -1:]), self.embedding.weight), updated
+        return self.project(self.norm(x[:, -1:])), updated

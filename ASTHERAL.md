@@ -37,9 +37,9 @@ You: Pasta.
 Astheral: Would you like a simple pasta recipe?
 ```
 
-The tested weights are preserved locally at `runs/astheral-conversation/selected.pt`. Chat, HTTP serving, and evaluation select this snapshot by default when it exists. Responses use greedy decoding by default. There is no response lookup, teacher call, or fallback in the inference path. `--checkpoint` still selects another explicit checkpoint.
+Those original tested weights are preserved locally at `runs/astheral-conversation/selected-before-phrasing.pt`. The serving snapshot at `runs/astheral-conversation/selected.pt` has since advanced to step 3090; see [the recorded API reviews](reports/README.md). Chat, HTTP serving, and evaluation select that serving snapshot by default when it exists. Responses use greedy decoding by default. There is no response lookup, teacher call, or fallback in the inference path. `--checkpoint` still selects another explicit checkpoint.
 
-This is a narrow learned capability. In review, `Please tell me your name.` elicited an unrelated cooking question, and an unfamiliar greeting introduced an incorrect name. These failures are recorded in `runs/astheral-conversation/review.json`; the two successful exchanges do not establish broad competence.
+This is a narrow learned capability. At that earlier checkpoint, `Please tell me your name.` elicited an unrelated cooking question, and an unfamiliar greeting introduced an incorrect name. Those failures are recorded in `runs/astheral-conversation/review.json`. The new step-3090 snapshot fixes those specific greeting/name and greeting/dinner exchanges and answers an introduction request; broad 25-turn coherence is still poor. The successful short exchanges do not establish broad competence.
 
 Further training remains separate under `runs/astheral-short`, so it cannot overwrite the selected snapshot. To resume it after the machine stops:
 
@@ -70,6 +70,18 @@ The evaluator uses each actual generated response as subsequent context and reco
 The watcher repeatedly assesses saved checkpoints in full 25-turn conversations and stores transcripts under `runs/astheral-general-chat/long-evaluations/`. It does not automatically select or publish a model based on keyword matches. A shorter rolling-history option is available to the evaluator as `--history-tokens`; experiments with that option do not change the chat default automatically.
 
 An optional auxiliary topic head (`--intent-weight 1`) trains on coarse labels derived from teacher answers, such as identity, food, music, and books. Its input is the causal hidden state before the answer begins, so it cannot see the future teacher answer. The labels and head are used only during training; chat does not import the labeler, route by topic, or look up a response. The head and its optimizer state are retained for faithful training resumption. The generator remains the same 419,496,960-parameter Astheral model. The snapshot before this objective is retained as `pre-intent.pt`.
+
+## Output-projection continuation
+
+The cached training scheme freezes the input embeddings. In the original architecture those weights also perform output prediction, so the output projection is frozen too. The `--untie-output` trial copies Astheral's own embedding weights into a separate trainable output projection. It starts with identical logits and imports no external model weights. The resulting generator has 427,885,568 parameters and still uses the same input tokenizer and frozen-prefix cache. Old tied checkpoints remain readable.
+
+```bash
+.venv/bin/python -u -m astheral.conversation_train --source runs/astheral-general-chat/latest.pt --output runs/astheral-decoder --lessons astheral/phrasing_lessons.json --replay astheral/short_lessons.json --context-replay --allow-lesson-change --reply-start-weight 5 --intent-weight 1 --untie-output --lr 0.0003
+.venv/bin/python -u -m astheral.conversation_watch --run runs/astheral-decoder
+.venv/bin/python -m astheral.conversation_eval --url http://127.0.0.1:8000 --turns 25 --max-tokens 64 --output reports/astheral-25-turn-ui.json
+```
+
+This trial is separate from the selected serving checkpoint. Choosing a new checkpoint requires reviewing its actual exchanges. The HTTP test exercises the real server with the browser's 64-token reply budget. Keyword diagnostics use word boundaries and explicit stems; generic words such as `like` no longer count as evidence that a reply is about a cat. Raw responses remain the primary evidence.
 
 ## Local setup and training
 

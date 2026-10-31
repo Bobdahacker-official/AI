@@ -82,7 +82,7 @@ def suffix(model, hidden, boundary, return_hidden=False):
     for block in model.blocks[boundary:]:
         hidden = block(hidden)
     hidden = model.norm(hidden)
-    logits = F.linear(hidden, model.embedding.weight)
+    logits = model.project(hidden)
     return (logits, hidden) if return_hidden else logits
 
 
@@ -109,6 +109,7 @@ def main():
     parser.add_argument("--context-replay", action="store_true", help="Teach self-contained questions after unrelated training histories")
     parser.add_argument("--reply-start-weight", type=float, default=1.0)
     parser.add_argument("--intent-weight", type=float, default=0.0)
+    parser.add_argument("--untie-output", action="store_true", help="Train an independent output projection copied from Astheral's own embeddings")
     args = parser.parse_args()
     if min(args.layers, args.batch, args.save_every) < 1 or args.steps < 0 or args.lr <= 0 or args.reply_start_weight < 1 or args.intent_weight < 0:
         parser.error("Invalid training counts or rate")
@@ -139,6 +140,9 @@ def main():
             raise ValueError("Resume this checkpoint with the same auxiliary intent objective")
         intent_head.load_state_dict(state["intent_head"])
         optimizer.add_param_group({"params": list(intent_head.parameters())})
+    if model.output is not None:
+        model.output.requires_grad_(True)
+        optimizer.add_param_group({"params": list(model.output.parameters())})
     lesson_sources = {path: file_hash(path) for path in [args.lessons, *args.replay]}
     fingerprint = file_hash(args.lessons) if not args.replay else hashlib.sha256(json.dumps(lesson_sources, sort_keys=True).encode()).hexdigest()
     if args.context_replay:
@@ -156,6 +160,9 @@ def main():
         torch.set_rng_state(state["rng"])
     if intent_head is not None and "intent_head" not in state:
         optimizer.add_param_group({"params": list(intent_head.parameters())})
+    if args.untie_output and model.output is None:
+        model.untie_output()
+        optimizer.add_param_group({"params": list(model.output.parameters())})
     for group in optimizer.param_groups:
         group["lr"] = args.lr
     source_step = state.get("conversation_training", {}).get("source_step", state["step"])

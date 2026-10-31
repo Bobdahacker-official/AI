@@ -1,5 +1,14 @@
 import pytest
-from astheral.conversation_eval import assess, CASES
+from astheral.conversation_eval import assess, CASES, keyword_match
+
+
+def test_keywords_do_not_count_unrelated_substrings_or_generic_words():
+    assert not keyword_match("It is raining.", ["ai"])
+    assert not keyword_match("Fourteen is 14.", ["4"])
+    pet_keywords = next(keys for _, category, keys in CASES if category == "pets_followup")
+    assert not keyword_match("What do you like to cook?", pet_keywords)
+    assert keyword_match("Your cat sounds sleepy.", pet_keywords)
+    assert keyword_match("Do you enjoy mysteries?", ["myster*"])
 
 
 class HarnessOnlyAssistant:

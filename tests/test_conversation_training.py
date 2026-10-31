@@ -67,3 +67,24 @@ def test_auxiliary_topic_head_cannot_see_future_teacher_answer():
     loss.backward()
     assert head.weight.grad.abs().sum() > 0
     assert model.blocks[-1].qkv.weight.grad.abs().sum() > 0
+
+
+def test_untied_projection_starts_equal_and_learns_without_changing_input_embeddings():
+    model = Astheral(Config(vocab_size=32, width=16, layers=3, heads=2, hidden=32, context=12))
+    x = torch.tensor([[2, 4, 3, 7]])
+    before, _ = model(x)
+    embedding = model.embedding.weight.detach().clone()
+    model.untie_output()
+    after, _ = model(x)
+    torch.testing.assert_close(before, after)
+    assert model.cfg.tie_embeddings is False
+    assert model.output.weight.data_ptr() != model.embedding.weight.data_ptr()
+    optimizer = torch.optim.AdamW(model.output.parameters(), lr=0.01)
+    after.square().mean().backward()
+    optimizer.step()
+    torch.testing.assert_close(embedding, model.embedding.weight)
+    assert not torch.equal(model.output.weight, embedding)
+    restored = Astheral(model.cfg)
+    restored.load_state_dict(model.state_dict())
+    torch.testing.assert_close(restored(x)[0], model(x)[0])
+    torch.testing.assert_close(restored.forward_cached(x)[0][:, -1], model(x)[0][:, -1])
