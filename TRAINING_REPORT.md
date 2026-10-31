@@ -139,6 +139,45 @@ passed after adding answer-label masking and context-cropping checks. No canned
 responses, pretrained weights, or externally generated training records were
 introduced. Training continues toward the still-unmet conversational goal.
 
+## Uninterrupted main run and response-supervision pilot
+
+The original trainer, PID 2716, was kept running during subsequent work, including
+the reported environment reconnection. It reached durable step 200 with 120,576
+processed tokens and combined-corpus validation loss 5.6596539021. Its direct
+conversation answers still fail: for example, the arithmetic answer is
+`H, how you like you like you?`. Its eight-record answer-only cross-entropy was
+6.9396332942 and token accuracy 4.7319%. This is not a capable assistant.
+
+A concrete alternative was implemented and exercised without stopping that
+run. Existing role delimiters produce assistant-only loss masks, with source
+array and tokenizer verification. These masks label 3,785,395 existing training
+tokens and 70,809 validation tokens; they do not invent responses. All 15 tests
+passed, including exclusion of system/user text and correct assistant-end labels.
+
+Two separate full-size continuations started from Astheral's own pinned step-175
+checkpoint. Each took ten optimizer updates on the same ten 512-token windows,
+using batch 1, two CPU threads and the same learning rate. Their final checkpoint
+RNG states, dataset fingerprints, architecture, step 185 and 100,096 inherited-plus-
+processed token counters match. Deterministic replay found no resampling and
+2,113 assistant answer labels across those windows. The two runs are independent;
+their step counts must not be added together or added to the main run's count.
+
+The same 634 answer tokens from eight existing held-out human records were scored:
+
+| Model | Answer cross-entropy | Answer-token accuracy |
+| --- | ---: | ---: |
+| Shared source, step 175 | 6.9203478696 | 5.9937% |
+| All-target control, step 185 | 6.9723233485 | 4.8896% |
+| Assistant-target trial, step 185 | 7.0029915410 | 7.7287% |
+
+The trial's accuracy increased, but its loss worsened and its actual answers were
+still wrong or repetitive. This small pilot does not establish a conversational
+improvement. The ongoing main run was therefore left on its existing strategy.
+The optional supervised-response implementation and real trial artifacts are
+retained for later experiments, not presented as a successful trained assistant.
+Trial checkpoints and full answer reports are under
+`runs/astheral-assistant-trial/` and `runs/astheral-all-targets-control/`.
+
 A separate real step-125 weight export is retained at
 `exports/astheral-step125/weights.pt`, with SHA-256:
 `3f93659e66aafae83f00b3bb8fa90fc7642599e55f21ce0991fac2fef1768639`.

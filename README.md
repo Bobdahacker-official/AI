@@ -158,3 +158,26 @@ These reference scores and identical-response diagnostics expose failure modes
 that a falling overall training loss can hide. They do not replace inspection
 of the actual generated conversations. No network service or external model is
 used to produce or judge answers.
+
+## Assistant-response supervision experiment
+
+`python -m astheral.supervision` derives loss masks from existing role delimiters
+in `data/combined`. It adds no training text and does not replace the token arrays
+being read by the live trainer. The verified corpus contains 3,785,395 assistant
+target tokens in training and 70,809 in validation, including assistant end tokens.
+
+The trainer supports `--loss-scope assistant` and `--init-from` for a separate
+continuation of an existing local Astheral checkpoint. Architecture, vocabulary,
+tokenizer and dataset checks still apply. Masks are matched to source-array
+hashes. System/user tokens do not contribute to target loss, while their context
+still participates in attention. Windows without any answer targets are resampled
+instead of producing NaN loss. Scope changes are recorded in checkpoint history.
+
+The completed pilot used the real pinned step-175 checkpoint at
+`runs/experiments/source-step175.pt`. Separate assistant-only and all-target runs
+each performed ten additional full-model updates, ending at step 185. These are
+independent continuations; their steps are not added to the main run's counter.
+Both used the same ten 512-token input windows and matching final sampling RNG.
+The assistant-only trial had mixed reference scores and failed conversational
+checks, so it was not substituted for the continuously running main model.
+See TRAINING_REPORT.md for the measured comparison.

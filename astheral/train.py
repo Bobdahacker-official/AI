@@ -14,6 +14,7 @@ import numpy as np
 import torch
 
 from .model import Astheral, Config
+from .supervision import file_hash
 
 
 def atomic_save(state, path):
@@ -41,6 +42,8 @@ def main():
     parser.add_argument("--device", choices=["cpu", "cuda"], default="cpu")
     parser.add_argument("--precision", choices=["bf16", "fp32"], default="bf16")
     parser.add_argument("--allow-data-change", action="store_true", help="Continue own checkpoint on a new corpus only with exactly the same tokenizer")
+    parser.add_argument("--init-from", help="Initialize an experiment from a local Astheral checkpoint; own latest checkpoint takes precedence")
+    parser.add_argument("--loss-scope", choices=["all", "assistant"], default="all")
     args = parser.parse_args()
     if min(args.sequence, args.batch, args.accumulate, args.threads, args.save_every, args.eval_batches) <= 0 or args.steps < 0:
         parser.error("Counts must be positive; steps may be zero")
@@ -62,6 +65,18 @@ def main():
     fingerprint = {"metadata": metadata, "tokenizer_sha256": tokenizer_hash}
     train = np.load(data / "train.npy", mmap_mode="r")
     val = np.load(data / "val.npy", mmap_mode="r")
+    masks = {}
+    if args.loss_scope == "assistant":
+        supervision = json.loads((data / "supervision.json").read_text())
+        if supervision["tokenizer_sha256"] != tokenizer_hash:
+            raise ValueError("Assistant supervision tokenizer mismatch")
+        for name in ("train", "val"):
+            if supervision["partitions"][name]["tokens_sha256"] != file_hash(data / f"{name}.npy"):
+                raise ValueError("Assistant supervision token array mismatch")
+            masks[name] = np.load(data / f"{name}_assistant_mask.npy", mmap_mode="r")
+            array = train if name == "train" else val
+            if len(masks[name]) != len(array) or not masks[name].any():
+                raise ValueError("Missing or invalid assistant supervision")
     cfg = Config(vocab_size=metadata["vocab_size"])
     if args.sequence > cfg.context or min(len(train), len(val)) <= args.sequence:
         parser.error("Sequence length exceeds model or dataset capacity")
@@ -71,11 +86,18 @@ def main():
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=0.1, foreach=False)
     step, tokens_seen, checkpoint = 0, 0, out / "latest.pt"
     data_history = []
-    if checkpoint.exists():
-        state = torch.load(checkpoint, map_location=args.device, weights_only=True, mmap=True)
+    loss_history = []
+    resume_path = checkpoint if checkpoint.exists() else args.init_from
+    if resume_path:
+        state = torch.load(resume_path, map_location=args.device, weights_only=True, mmap=True)
         if state["config"] != asdict(cfg) or state["data"]["tokenizer_sha256"] != tokenizer_hash:
             raise ValueError("Checkpoint architecture or tokenizer mismatch")
         data_history = state.get("data_history", [])
+        loss_history = state.get("loss_history", [])
+        previous_scope = state.get("loss_scope", "all")
+        if previous_scope != args.loss_scope:
+            loss_history.append({"through_step": state["step"], "loss_scope": previous_scope})
+            print(json.dumps({"event": "loss_scope_transition", "step": state["step"], "loss_scope": args.loss_scope}), flush=True)
         if state["data"] != fingerprint:
             if not args.allow_data_change:
                 raise ValueError("Corpus changed; use --allow-data-change explicitly to continue training on the new corpus")
@@ -98,10 +120,18 @@ def main():
     signal.signal(signal.SIGINT, stop)
 
     def batch(array, generator=None):
-        starts = torch.randint(len(array) - args.sequence, (args.batch,), generator=generator).tolist()
-        x = np.stack([array[s:s + args.sequence].astype(np.int64) for s in starts])
-        y = np.stack([array[s + 1:s + args.sequence + 1].astype(np.int64) for s in starts])
-        return torch.from_numpy(x).to(args.device), torch.from_numpy(y).to(args.device)
+        for _ in range(100):
+            starts = torch.randint(len(array) - args.sequence, (args.batch,), generator=generator).tolist()
+            x = np.stack([array[s:s + args.sequence].astype(np.int64) for s in starts])
+            y = np.stack([array[s + 1:s + args.sequence + 1].astype(np.int64) for s in starts])
+            if args.loss_scope == "assistant":
+                mask = masks["train" if array is train else "val"]
+                selected = np.stack([mask[s + 1:s + args.sequence + 1] for s in starts])
+                y[selected == 0] = -100
+                if not selected.any():
+                    continue
+            return torch.from_numpy(x).to(args.device), torch.from_numpy(y).to(args.device)
+        raise ValueError("No supervised answer tokens found after 100 sample attempts")
 
     def autocast():
         return torch.autocast(args.device, dtype=torch.bfloat16) if args.precision == "bf16" else nullcontext()
@@ -118,9 +148,9 @@ def main():
         return total / args.eval_batches
 
     def save(validation):
-        atomic_save({"format": 1, "name": "Astheral", "config": asdict(cfg), "model": model.state_dict(), "optimizer": optimizer.state_dict(), "step": step, "tokens_seen": tokens_seen, "rng": torch.get_rng_state(), "data": fingerprint, "data_history": data_history, "validation_loss": validation, "training_args": vars(args)}, checkpoint)
+        atomic_save({"format": 1, "name": "Astheral", "config": asdict(cfg), "model": model.state_dict(), "optimizer": optimizer.state_dict(), "step": step, "tokens_seen": tokens_seen, "rng": torch.get_rng_state(), "data": fingerprint, "data_history": data_history, "loss_scope": args.loss_scope, "loss_history": loss_history, "validation_loss": validation, "training_args": vars(args)}, checkpoint)
         temporary_status = out / "status.tmp"
-        temporary_status.write_text(json.dumps({"step": step, "tokens_seen": tokens_seen, "parameters": model.parameter_count, "validation_loss": validation, "checkpoint": str(checkpoint), "updated_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}, indent=2) + "\n")
+        temporary_status.write_text(json.dumps({"step": step, "tokens_seen": tokens_seen, "parameters": model.parameter_count, "validation_loss": validation, "loss_scope": args.loss_scope, "checkpoint": str(checkpoint), "updated_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}, indent=2) + "\n")
         temporary_status.replace(out / "status.json")
 
     print(json.dumps({"event": "started", "pid": os.getpid(), "parameters": model.parameter_count, "step": step, "device": args.device, "precision": args.precision}), flush=True)
