@@ -150,3 +150,11 @@ These prompts are evaluation only; they are never used as training examples.
 Review the answers themselves. The evaluator does not mark a checkpoint capable
 just because it produces tokens. Generation uses real attention KV caching,
 verified against full-prefix computation, to make these evaluations practical.
+
+Assessments also measure prediction of existing held-out human answers across
+eight Dolly categories. Only answer tokens contribute to this loss and accuracy;
+system/user prompt tokens are masked. Input and answer truncation is reported.
+These reference scores and identical-response diagnostics expose failure modes
+that a falling overall training loss can hide. They do not replace inspection
+of the actual generated conversations. No network service or external model is
+used to produce or judge answers.

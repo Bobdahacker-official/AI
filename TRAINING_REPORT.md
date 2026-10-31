@@ -115,6 +115,30 @@ while the machine remains running. Their startup instructions were saved in
 the environment draft; this does not establish publication or a new-machine
 restoration test.
 
+Further uninterrupted training reached durable step 150 (69,376 processed
+tokens), with combined-corpus validation cross-entropy 5.9013044834. The live
+trainer process was kept running while evaluation was improved. A stale
+step-20 inference server was shut down to release its old weight mappings;
+the trainer and recurring evaluator were not stopped.
+
+Answer-only evaluation was added using eight existing held-out Dolly records,
+one per category, with 634 labeled answer tokens in total. Prompt and system
+tokens are excluded, and truncation is disclosed for each record. Results:
+
+| Checkpoint | Answer cross-entropy | Answer perplexity | Answer-token accuracy |
+| ---: | ---: | ---: | ---: |
+| 125 | 7.4242120496 | 1676.0784 | 5.5205% |
+| 150 | 7.1254100619 | 1243.1578 | 4.7319% |
+
+The step-150 answers remain unsuitable. It answers several unrelated questions
+with `Yes, a friendly, a friendly, helpful and honest AI assistant.` Lower
+answer loss alongside lower token accuracy is mixed evidence, not a passed
+conversational assessment. Later assessments also report identical-response
+counts to make failure to condition on questions visible. All 13 software tests
+passed after adding answer-label masking and context-cropping checks. No canned
+responses, pretrained weights, or externally generated training records were
+introduced. Training continues toward the still-unmet conversational goal.
+
 A separate real step-125 weight export is retained at
 `exports/astheral-step125/weights.pt`, with SHA-256:
 `3f93659e66aafae83f00b3bb8fa90fc7642599e55f21ce0991fac2fef1768639`.
