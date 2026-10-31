@@ -12,7 +12,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
-    parser.add_argument("--checkpoint", default="runs/astheral/latest.pt")
+    parser.add_argument("--checkpoint", help="Defaults to the reviewed conversation checkpoint when present")
     parser.add_argument("--tokenizer", default="data/processed/tokenizer.json")
     args = parser.parse_args()
     assistant = Assistant(args.checkpoint, args.tokenizer)
@@ -51,7 +51,7 @@ def main():
                 if not all(isinstance(message, dict) for message in request["messages"]):
                     raise ValueError("Each message must be an object")
                 with lock:
-                    result = assistant.reply(request["messages"], int(request.get("max_tokens", 64)), float(request.get("temperature", 0.8)))
+                    result = assistant.reply(request["messages"], int(request.get("max_tokens", 64)), float(request.get("temperature", 0)))
                 self.respond(200, result)
             except (ValueError, TypeError, KeyError) as error:
                 self.respond(400, {"error": str(error)})

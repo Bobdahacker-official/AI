@@ -12,7 +12,10 @@ from .model import Astheral, Config
 
 
 class Assistant:
-    def __init__(self, checkpoint="runs/astheral/latest.pt", tokenizer="data/processed/tokenizer.json", threads=2):
+    def __init__(self, checkpoint=None, tokenizer="data/processed/tokenizer.json", threads=2):
+        if checkpoint is None:
+            selected = Path("runs/astheral-conversation/selected.pt")
+            checkpoint = selected if selected.exists() else "runs/astheral/latest.pt"
         torch.set_num_threads(threads)
         state = torch.load(checkpoint, map_location="cpu", weights_only=True, mmap=True)
         if hashlib.sha256(Path(tokenizer).read_bytes()).hexdigest() != state["data"]["tokenizer_sha256"]:
@@ -34,7 +37,7 @@ class Assistant:
         del state
 
     @torch.inference_mode()
-    def reply(self, messages, max_tokens=64, temperature=0.8, seed=42):
+    def reply(self, messages, max_tokens=64, temperature=0, seed=42):
         if not 1 <= max_tokens <= 512 or not 0 <= temperature <= 2:
             raise ValueError("max_tokens must be 1..512; temperature must be 0..2")
         if not messages or messages[-1].get("role") != "user":
@@ -83,7 +86,7 @@ class Assistant:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--checkpoint", default="runs/astheral/latest.pt")
+    parser.add_argument("--checkpoint", help="Defaults to the reviewed conversation checkpoint when present")
     parser.add_argument("--tokenizer", default="data/processed/tokenizer.json")
     parser.add_argument("--prompt")
     parser.add_argument("--max-tokens", type=int, default=64)

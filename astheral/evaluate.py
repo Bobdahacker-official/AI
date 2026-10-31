@@ -25,7 +25,7 @@ def response_diagnostics(reports):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--checkpoint", default="runs/astheral/latest.pt")
+    parser.add_argument("--checkpoint", help="Defaults to the reviewed conversation checkpoint when present")
     parser.add_argument("--tokenizer", default="data/processed/tokenizer.json")
     parser.add_argument("--output", default="runs/astheral/evaluations")
     parser.add_argument("--max-tokens", type=int, default=32)
