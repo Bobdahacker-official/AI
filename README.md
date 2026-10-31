@@ -22,6 +22,7 @@ python3 -m venv .venv
 .venv/bin/python scripts/download_data.py
 .venv/bin/python -m astheral.data
 .venv/bin/python -m astheral.corpus
+.venv/bin/python -m astheral.dialogue
 .venv/bin/python -m pytest -q
 ```
 
@@ -40,7 +41,7 @@ weights, tokenized data and dependencies stay outside Git in ignored directories
 ## Train continuously
 
 ```sh
-.venv/bin/python -u -m astheral.train --sequence 128 --accumulate 1 --save-every 10 --eval-batches 2
+.venv/bin/python -m astheral.manage start
 ```
 
 There is no default step or time limit. Interrupt with SIGINT or SIGTERM for a
@@ -65,15 +66,17 @@ Its PID is exposed in manager status; output is in `runs/astheral/assessments.lo
 and `runs/astheral/evaluations/step-N.json`. It never fabricates a readiness verdict
 or terminates training because inference merely succeeded.
 
-The manager now uses 512-token windows and batch size 2 by default. It selects
-`data/combined` when present, which contains existing Dolly instructions and
-Google Taskmaster-1 multi-turn conversations. This increases observed token
-throughput and dialogue coverage. Override `--sequence`, `--batch`, `--data`, or
-`--save-every` explicitly for other experiments. A running trainer is left alone;
-new options take effect when starting a new process.
+The manager uses 512-token windows and batch size 2 for a fresh run. Existing
+checkpoints restore their own corpus and training settings, excluding old finite
+step limits and one-time transition permissions. Fresh models select the prepared
+`data/general-dialogue` corpus first, then `data/combined`, then `data/processed`.
+The active model uses Dolly plus HH-RLHF helpful dialogues and ten-step checkpoint
+intervals. Override `--sequence`, `--batch`, `--data`, or `--save-every` explicitly
+for experiments. An existing running trainer is left alone; new options apply
+when starting a worker.
 
-To transition an existing Dolly-only checkpoint to the verified combined corpus,
-use `.venv/bin/python -m astheral.manage start --allow-data-change` after its old
+To transition an older checkpoint to the verified broader corpus, use
+`.venv/bin/python -m astheral.manage start --data data/general-dialogue --allow-data-change` after its old
 trainer has saved and exited. This explicit operation preserves weights and
 optimizer and records old corpus provenance in `data_history`; a tokenizer or
 architecture mismatch is always rejected. Ordinary resumes on the same corpus
@@ -82,7 +85,9 @@ do not need that flag.
 `runs/astheral/metrics.jsonl` records actual optimizer steps, losses, gradient
 norms, tokens processed and step durations. `runs/astheral/status.json` records
 the last completed checkpoint. Checkpoint step 0 is initialization, not training.
-The first trained checkpoint is written after step 1, then every 10 steps.
+The first trained checkpoint is written after step 1, then at the configured
+interval. The current run checkpoints every 10 steps. A corpus/target transition
+also saves a baseline checkpoint before updating weights on the new phase.
 Validation uses fixed held-out samples; increase `--eval-batches` for a broader
 estimate. The fixed sample is not a full-dataset benchmark.
 
@@ -131,8 +136,8 @@ the full checkpoint in `runs/astheral/latest.pt` instead.
 
 32 decoder blocks; width 1,024; 16 causal attention heads; SwiGLU feedforward width
 2,816; RMSNorm; rotary position embeddings; tied input/output embeddings; maximum
-512-token context. All 419,496,960 parameters are trainable. The training run uses
-128-token windows to keep CPU iterations practical.
+512-token context. All 419,496,960 parameters are trainable. The original smoke run
+used 128-token windows; ongoing training uses 512-token windows and batch size 2.
 
 Tests exercise causal masking, gradient flow through all parameters, actual
 optimization on a small configuration, checkpoint/optimizer round trips, context
@@ -140,7 +145,7 @@ limits, tokenizer Unicode round trips and the full architecture's parameter coun
 The small optimization test is a software test, not evidence of full-size model
 quality. The real full-size training run and its metrics provide that evidence.
 
-See [DATA_SOURCES.md](DATA_SOURCES.md) for the official human-authored dataset,
+See [DATA_SOURCES.md](DATA_SOURCES.md) for the published corpora and their provenance,
 reproducible revision, checksum, split, attribution and license.
 
 For actual conversational evaluation run `.venv/bin/python -m astheral.evaluate`.

@@ -87,6 +87,7 @@ def main():
     step, tokens_seen, checkpoint = 0, 0, out / "latest.pt"
     data_history = []
     loss_history = []
+    phase_changed = False
     resume_path = checkpoint if checkpoint.exists() else args.init_from
     if resume_path:
         state = torch.load(resume_path, map_location=args.device, weights_only=True, mmap=True)
@@ -96,12 +97,14 @@ def main():
         loss_history = state.get("loss_history", [])
         previous_scope = state.get("loss_scope", "all")
         if previous_scope != args.loss_scope:
+            phase_changed = True
             loss_history.append({"through_step": state["step"], "loss_scope": previous_scope})
             print(json.dumps({"event": "loss_scope_transition", "step": state["step"], "loss_scope": args.loss_scope}), flush=True)
         if state["data"] != fingerprint:
             if not args.allow_data_change:
                 raise ValueError("Corpus changed; use --allow-data-change explicitly to continue training on the new corpus")
             data_history.append({"through_step": state["step"], "data": state["data"]})
+            phase_changed = True
             print(json.dumps({"event": "corpus_transition", "step": state["step"], "new_corpus": metadata["dataset"]}), flush=True)
         model.load_state_dict(state["model"])
         optimizer.load_state_dict(state["optimizer"])
@@ -150,13 +153,13 @@ def main():
     def save(validation):
         atomic_save({"format": 1, "name": "Astheral", "config": asdict(cfg), "model": model.state_dict(), "optimizer": optimizer.state_dict(), "step": step, "tokens_seen": tokens_seen, "rng": torch.get_rng_state(), "data": fingerprint, "data_history": data_history, "loss_scope": args.loss_scope, "loss_history": loss_history, "validation_loss": validation, "training_args": vars(args)}, checkpoint)
         temporary_status = out / "status.tmp"
-        temporary_status.write_text(json.dumps({"step": step, "tokens_seen": tokens_seen, "parameters": model.parameter_count, "validation_loss": validation, "loss_scope": args.loss_scope, "checkpoint": str(checkpoint), "updated_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}, indent=2) + "\n")
+        temporary_status.write_text(json.dumps({"step": step, "tokens_seen": tokens_seen, "parameters": model.parameter_count, "validation_loss": validation, "loss_scope": args.loss_scope, "dataset": metadata["dataset"], "data_directory": str(data.resolve()), "checkpoint": str(checkpoint), "updated_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}, indent=2) + "\n")
         temporary_status.replace(out / "status.json")
 
     print(json.dumps({"event": "started", "pid": os.getpid(), "parameters": model.parameter_count, "step": step, "device": args.device, "precision": args.precision}), flush=True)
     baseline = evaluate()
     print(json.dumps({"event": "validation", "step": step, "loss": baseline}), flush=True)
-    if not checkpoint.exists():
+    if not checkpoint.exists() or phase_changed:
         save(baseline)
     metrics = (out / "metrics.jsonl").open("a", buffering=1)
     last_saved = step

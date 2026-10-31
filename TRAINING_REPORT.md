@@ -201,6 +201,47 @@ no configured step/time limit. A dataset-access problem did not terminate the
 run, reset its weights, or cause placeholder data to be substituted. The saved
 network draft is separate from runtime application and publication.
 
+## Broader data downloaded, verified, and used for actual training
+
+The environment's network policy later advanced to revision 2 with the media
+hostname allowed. The former trainer/evaluator processes had ended during that
+update. Its log reached step 275, but only step 250 was durable; those 25 unsaved
+updates were lost. Recovery resumed the real step-250 checkpoint and recomputed
+subsequent updates. Duplicate metric step numbers across that recovery must not
+be summed as additional model progress.
+
+The official public GitHub download route then delivered all six HH helpful
+train/test objects. Their actual byte lengths and SHA-256 hashes match the pinned
+publisher's LFS declarations. Gzip records were decoded and parsed; pointer files
+were never substituted for data. The MIT notice is retained with the source.
+
+The actual prepared corpus now has 119,692 training records / 34,343,893 tokens
+and 6,503 validation records / 1,912,231 tokens, using Astheral's original tokenizer.
+Root grouping, protected evaluation prompts, exclusion of previously trained
+validation roots and source hashes are documented in DATA_SOURCES.md. The corpus
+builder asserted zero shared train/validation prompt roots, and the real packed
+arrays were checked for expected lengths, uint16 dtype and vocabulary bounds.
+
+The original-data continuation saved all progress through step 302 / 225,024
+processed tokens. A normal checkpoint handoff then continued those exact model
+weights and AdamW state on the broader corpus. The previous phase is recorded
+through step 302 in `data_history`. The new corpus baseline loss was 5.8876216412;
+at step 310 it was 5.7366209030, and at step 330 it was 5.5860638618. These scores
+are comparable within this new phase, not against earlier-corpus losses.
+
+Answer-only loss on the fixed eight Dolly references was 6.6708998815 at step 310
+and 6.5065301360 at step 330. Actual generated answers still fail conversational
+checks. The model is **not** claimed capable or finished. Training continues with
+all 419,496,960 parameters, batch 2, context 512, four CPU threads and BF16 autocast.
+
+Checkpoint intervals are now ten steps to reduce unsaved-work loss. Manager
+startup restores the corpus and training settings from the actual checkpoint,
+excluding transient data-change permissions and finite experiment limits.
+Corpus transitions save their new baseline before subsequent updates. All 22
+software tests passed after parser, root grouping and corpus-resume checks were
+added. Downloader repeatability was exercised against all six verified cached
+objects without fetching model weights or re-creating training answers.
+
 A separate real step-125 weight export is retained at
 `exports/astheral-step125/weights.pt`, with SHA-256:
 `3f93659e66aafae83f00b3bb8fa90fc7642599e55f21ce0991fac2fef1768639`.

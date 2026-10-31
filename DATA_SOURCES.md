@@ -58,28 +58,48 @@ orders written by human contributors. Its text does not connect Astheral to
 reservation, payment, or ordering systems. These examples improve dialogue
 coverage but are not evidence of factual accuracy or useful assistant behavior.
 
-## Broader dialogue source investigated, not ingested
+## Broader assistant dialogue corpus: active
 
 The official [Anthropic HH-RLHF corpus](https://github.com/anthropics/hh-rlhf/tree/c72f5cee8eb7b4d2ea5617657f4430d5e333af07)
-was inspected as a broader conversation source. Its repository license is MIT,
+is now included as a broader conversation source. Its repository license is MIT,
 copyright 2022 Anthropic. Its preferred responses are **model-generated and
-human-ranked**, unlike the human-written Dolly and Taskmaster records used so
-far. Downloading this recorded text would not import any pretrained model weights
-or invoke a teacher API.
+human-ranked**, unlike the human-written Dolly and Taskmaster records used in
+earlier phases. No pretrained model weights or teacher API were used here.
 
-The checked-out `.jsonl.gz` files are Git LFS pointers, not downloaded datasets.
+The initial checked-out `.jsonl.gz` files were Git LFS pointers, not datasets.
 They were detected and rejected rather than used as training data. `git lfs pull`
 returned `Resource not accessible by integration`. The official public download
 redirected to `media.githubusercontent.com`, where the managed proxy denied the
 CONNECT request with HTTP 403. The live policy did not allow that hostname.
 
-The exact hostname addition was saved in the environment configuration draft,
-preserving the existing package-manager presets. It was not active in the running
-instance at the last check. A real download and checksum verification remain
-pending that network change; no HH-RLHF content has been added to Astheral's
-training corpus. The pointer for `helpful-base/train.jsonl.gz` declares expected
-object SHA-256 `518a5bf288456fc9f3b7c980c54116fba0c52f274d3f4d344675d83e4058f6f4`
-and size 16,200,131 bytes. That object has **not** yet been downloaded or verified.
+The hostname addition subsequently became active in runtime policy revision 2.
+The official public download route then succeeded. All six helpful-subset train
+and test gzip objects were downloaded and checked against their publisher-declared
+SHA-256 and byte counts. The first object actually verified as
+`518a5bf288456fc9f3b7c980c54116fba0c52f274d3f4d344675d83e4058f6f4`,
+16,200,131 bytes. Complete verification metadata is in `data/raw/hh/manifest.json`;
+the publisher's MIT notice is retained alongside the files.
+
+`python -m astheral.dialogue` uses the existing **chosen** conversations from
+`helpful-base`, `helpful-online`, and `helpful-rejection-sampled`. Rejected replies
+and red-team transcripts are not included. Existing utterances are preserved,
+wrapped in Astheral's role serialization, and encoded with its original trained
+8,192-token BPE vocabulary. No new answer examples are generated.
+
+Official test prompt roots, Dolly validation roots and the fixed conversation
+assessment roots are excluded from HH training. HH validation examples whose
+roots may have appeared in prior training are removed. Roots are grouped across
+case/whitespace variants; a runtime assertion verifies zero shared training and
+validation roots. Malformed role sequences and conflicting creator identities
+are excluded rather than repaired with invented text.
+
+The resulting active corpus contains **119,692 training records / 34,343,893 tokens**
+and **6,503 validation records / 1,912,231 tokens**. Training comprises 14,693 Dolly
+records and 104,999 HH conversations. It replaces the narrow Taskmaster-heavy
+mixture for continued training, while checkpoint history retains prior provenance.
+The model continued at step 302 with the same weights and optimizer; no reset
+or imported base model occurred. Global validation loss across different corpus
+phases must not be compared as if it measured the same examples.
 
 Stanford Alpaca's official documentation was also inspected. Its dataset is
 research-only/noncommercial (CC BY-NC 4.0), so it was not introduced as a fallback

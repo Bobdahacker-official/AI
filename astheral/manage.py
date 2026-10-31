@@ -10,6 +10,17 @@ import time
 
 ROOT = Path(__file__).resolve().parent.parent
 RUN = ROOT / "runs" / "astheral"
+RESUME_OPTIONS = ("sequence", "batch", "accumulate", "threads", "save_every", "eval_batches", "lr", "seed", "device", "precision", "loss_scope", "data")
+
+
+def resume_defaults(run):
+    checkpoint = Path(run) / "latest.pt"
+    if not checkpoint.exists():
+        return {}
+    import torch
+    state = torch.load(checkpoint, map_location="cpu", weights_only=True, mmap=True)
+    saved = state.get("training_args", {})
+    return {key: saved[key] for key in RESUME_OPTIONS if key in saved}
 
 
 def running_pid(filename="train.lock"):
@@ -26,19 +37,26 @@ def running_pid(filename="train.lock"):
 
 
 def main():
+    defaults = resume_defaults(RUN) if "start" in sys.argv[1:2] and running_pid() is None else {}
     parser = argparse.ArgumentParser()
     parser.add_argument("action", choices=["start", "status"])
-    parser.add_argument("--sequence", type=int, default=512)
-    parser.add_argument("--batch", type=int, default=2)
-    parser.add_argument("--save-every", type=int, default=25)
-    parser.add_argument("--data", default="data/combined" if (ROOT / "data/combined/metadata.json").exists() else "data/processed")
+    numeric = {"sequence": (int, 512), "batch": (int, 2), "accumulate": (int, 1), "threads": (int, 4), "save_every": (int, 25), "eval_batches": (int, 2), "lr": (float, 0.0003), "seed": (int, 42)}
+    for name, (kind, value) in numeric.items():
+        parser.add_argument("--" + name.replace("_", "-"), type=kind, default=defaults.get(name, value))
+    parser.add_argument("--device", choices=["cpu", "cuda"], default=defaults.get("device", "cpu"))
+    parser.add_argument("--precision", choices=["bf16", "fp32"], default=defaults.get("precision", "bf16"))
+    parser.add_argument("--loss-scope", choices=["all", "assistant"], default=defaults.get("loss_scope", "all"))
+    fallback_data = next((name for name in ("data/general-dialogue", "data/combined", "data/processed") if (ROOT / name / "metadata.json").exists()), "data/processed")
+    parser.add_argument("--data", default=defaults.get("data", fallback_data))
     parser.add_argument("--allow-data-change", action="store_true")
     args = parser.parse_args()
     RUN.mkdir(parents=True, exist_ok=True)
     pid = running_pid()
     if args.action == "start" and pid is None:
         with (RUN / "training.log").open("ab", buffering=0) as log:
-            command = [sys.executable, "-u", "-m", "astheral.train", "--sequence", str(args.sequence), "--batch", str(args.batch), "--accumulate", "1", "--save-every", str(args.save_every), "--eval-batches", "2", "--data", args.data]
+            command = [sys.executable, "-u", "-m", "astheral.train"]
+            for name in RESUME_OPTIONS:
+                command.extend(["--" + name.replace("_", "-"), str(getattr(args, name))])
             if args.allow_data_change:
                 command.append("--allow-data-change")
             process = subprocess.Popen(command, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
