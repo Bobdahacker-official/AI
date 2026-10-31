@@ -2,7 +2,7 @@
 __pycache__/
 *.py[cod]
 
-# Preserved artifacts from the previous, retired training project.
+# Local training corpora, checkpoints, and exports.
 data/
 runs/
 exports/

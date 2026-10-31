@@ -1,0 +1,13 @@
+# Teacher provenance and limits
+
+The current teacher is Anthropic's context-distilled 52B assistant as described in the official [HH-RLHF repository](https://github.com/anthropics/hh-rlhf/tree/c72f5cee8eb7b4d2ea5617657f4430d5e333af07). Only `helpful-base` chosen conversations are used. These are model answers preferred by human annotators over another answer. The source does not identify a commercial Claude version. The code does not claim that the teacher is GPT-4 or a current frontier model.
+
+This is offline response distillation: Astheral trains on existing published teacher text. No teacher API is connected, no teacher weights are downloaded, and no paid API calls are made. Human preference is useful quality evidence but does not guarantee truth. The dataset's README describes research use; the repository provides an MIT license, retained in `data/raw/hh/LICENSE`. Source licenses and the earlier Dolly CC BY-SA 3.0 and Taskmaster CC BY 4.0 training history must be considered separately from GenericDataset's license.
+
+The preparer checks fixed source hashes for the pinned revision. It selects complete examples of at most 257 tokens, excludes conflicting creator identities, deduplicates exact text, and protects official test roots, previous Dolly validation questions, fixed evaluation questions, and `Hello` from new training. Training and validation root sets do not overlap. The validation data have already been available for evaluation in the old run, so they are not a new blind benchmark.
+
+Prepared corpus: 26,101 train conversations (3,673,686 tokens; 2,294,478 assistant targets), and 97 validation conversations (12,329 tokens; 7,564 assistant targets). The exact selected corpus and range hashes live in `data/teacher/metadata.json` and `supervision.json`.
+
+Unlike the previous random packed windows, batches begin at each selected conversation's system prompt and include the entire answer. Padding and user/system tokens do not contribute to the training loss; the assistant's end marker does. Padding is also excluded from new input-token counts. The 256-token CPU sequence reduces work per update compared with the earlier 512-token sequence. It does not establish faster convergence or conversational readiness; actual generated answers must be checked.
+
+The preserved pre-teacher checkpoint is step 565. New training retains model and optimizer state and records corpus and supervision transitions inside the next checkpoint. The learning rate is reduced from 0.0003 to 0.0001. This is a focused continuation of an undertrained model, not proof that distillation has succeeded.
