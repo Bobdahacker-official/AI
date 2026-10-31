@@ -11,8 +11,35 @@ from .data import SYSTEM
 from .model import Astheral, Config
 
 
+def build_prompt(tokenizer, messages, budget):
+    """Keep system instructions and a suffix of complete exchanges within budget."""
+    if not messages or len(messages) % 2 != 1:
+        raise ValueError("Conversation must alternate user and assistant and end with user")
+    end = tokenizer.token_to_id("<|end|>")
+    newline = tokenizer.encode("\n").ids
+    system = [tokenizer.token_to_id("<|system|>")] + tokenizer.encode(SYSTEM).ids + [end]
+    tail = newline + [tokenizer.token_to_id("<|assistant|>")]
+    encoded = []
+    for index, message in enumerate(messages):
+        role = "user" if index % 2 == 0 else "assistant"
+        content = message.get("content")
+        if message.get("role") != role or not isinstance(content, str) or not content.strip():
+            raise ValueError("Messages must alternate nonempty user and assistant text")
+        if any(marker in content for marker in ("<|user|>", "<|assistant|>", "<|system|>", "<|end|>", "<|pad|>")):
+            raise ValueError("Reserved conversation delimiters in message")
+        encoded.append(newline + [tokenizer.token_to_id(f"<|{role}|>")] + tokenizer.encode(content).ids + [end])
+    removed = 0
+    while len(encoded) > 1 and len(system) + sum(map(len, encoded)) + len(tail) > budget:
+        encoded = encoded[2:]
+        removed += 2
+    ids = system + [token for message in encoded for token in message] + tail
+    if len(ids) > budget:
+        raise ValueError("Latest message exceeds the model's available context; shorten it")
+    return ids, removed
+
+
 class Assistant:
-    def __init__(self, checkpoint=None, tokenizer="data/processed/tokenizer.json", threads=2):
+    def __init__(self, checkpoint=None, tokenizer="data/processed/tokenizer.json", threads=2, history_tokens=None):
         if checkpoint is None:
             selected = Path("runs/astheral-conversation/selected.pt")
             checkpoint = selected if selected.exists() else "runs/astheral/latest.pt"
@@ -30,6 +57,9 @@ class Assistant:
             dim = model.cfg.width // model.cfg.heads
             block.inv_freq = 1 / (10000 ** (torch.arange(0, dim, 2).float() / dim))
         self.model = model.eval()
+        if history_tokens is not None and history_tokens < 32:
+            raise ValueError("history_tokens must be at least 32")
+        self.history_tokens = history_tokens
         self.tokenizer = Tokenizer.from_file(str(tokenizer))
         self.step = state["step"]
         self.tokens_seen = state["tokens_seen"]
@@ -40,22 +70,11 @@ class Assistant:
     def reply(self, messages, max_tokens=64, temperature=0, seed=42):
         if not 1 <= max_tokens <= 512 or not 0 <= temperature <= 2:
             raise ValueError("max_tokens must be 1..512; temperature must be 0..2")
-        if not messages or messages[-1].get("role") != "user":
-            raise ValueError("Conversation must end with a user message")
         tokenizer = self.tokenizer
-        ids = [tokenizer.token_to_id("<|system|>")] + tokenizer.encode(SYSTEM).ids + [tokenizer.token_to_id("<|end|>")]
-        # Encode user content separately: text cannot insert structural role tokens.
-        for message in messages:
-            role = message.get("role")
-            content = message.get("content")
-            if role not in ("user", "assistant") or not isinstance(content, str):
-                raise ValueError("Messages need a user/assistant role and string content")
-            # Disallow literal control delimiters to preserve the serialization grammar.
-            if any(marker in content for marker in ("<|user|>", "<|assistant|>", "<|system|>", "<|end|>", "<|pad|>")):
-                raise ValueError("Reserved conversation delimiters in message")
-            ids += tokenizer.encode("\n").ids + [tokenizer.token_to_id(f"<|{role}|>")]
-            ids += tokenizer.encode(content).ids + [tokenizer.token_to_id("<|end|>")]
-        ids += tokenizer.encode("\n").ids + [tokenizer.token_to_id("<|assistant|>")]
+        budget = self.model.cfg.context - max_tokens
+        if self.history_tokens is not None:
+            budget = min(budget, self.history_tokens)
+        ids, removed = build_prompt(tokenizer, messages, budget)
         generator = torch.Generator().manual_seed(seed)
         result = []
         end = tokenizer.token_to_id("<|end|>")
@@ -81,7 +100,7 @@ class Assistant:
                     break
                 ids.append(token)
                 result.append(token)
-        return {"response": tokenizer.decode(result, skip_special_tokens=True), "generated_tokens": len(result), "checkpoint_step": self.step, "tokens_seen": self.tokens_seen}
+        return {"response": tokenizer.decode(result, skip_special_tokens=True), "generated_tokens": len(result), "checkpoint_step": self.step, "tokens_seen": self.tokens_seen, "history_messages_dropped": removed}
 
 
 def main():

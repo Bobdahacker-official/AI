@@ -49,6 +49,28 @@ Further training remains separate under `runs/astheral-short`, so it cannot over
 
 The local checkpoint files are necessary to reproduce these answers; GitHub contains source and lessons, not these trained weights.
 
+## Varied wording and 25-turn assessment
+
+`astheral/phrasing_lessons.json` expands the synthetic teaching material to greetings, identity, food, music, books, hobbies, studying, writing, arithmetic, pets, and nearby conversation context. Previously reported failures such as `Please tell me your name.` are now teaching examples; they are regression cases, not unseen test data. Separate validation dialogues use different wording. Earlier short training dialogues are replayed; their old validation answers are not replayed.
+
+The chat interface has no message-count cap. The expanded generation assessment runs **25 user turns (50 messages including replies)**. The model still has a 512-token context window: old complete user/assistant pairs are removed when necessary, while the system prompt, latest user message, and space for generation are preserved. The API reports `history_messages_dropped`; this is not a promise to remember all 25 turns at once. An individually oversized latest message produces a clear error rather than silent truncation.
+
+```bash
+.venv/bin/python -u -m astheral.conversation_train --output runs/astheral-general-chat --source runs/astheral-phrasing/latest.pt --lessons astheral/phrasing_lessons.json --replay astheral/short_lessons.json --context-replay --allow-lesson-change --reply-start-weight 5 --intent-weight 1 --lr 0.0003
+.venv/bin/python -m astheral.conversation_eval --turns 25 --output runs/conversation-evaluation.json
+.venv/bin/python -u -m astheral.conversation_watch
+```
+
+The evaluator uses each actual generated response as subsequent context and records all prompts, responses, timings, and context trimming. Keyword checks help locate failures but do not establish coherence. Read the actual transcript. Software tests use small models or explicit stubs only for unit testing; they are not conversational-capability evidence.
+
+`--context-replay` adds a second view of self-contained training questions after other authored training histories. Only the final teacher answer is supervised; earlier context answers are masked. Validation dialogues are never used for these history examples. This addresses sensitivity to where a question occurs in a chat without changing inference into a scripted response system. Curriculum hashes, source data, and phase boundaries are retained in checkpoints.
+
+`--reply-start-weight 5` assigns fivefold loss weight to the first three supervised answer tokens, focusing updates on reply selection as well as fluent continuation. This changes the objective, so its weighted loss must not be compared directly with the old unweighted loss. The earlier snapshot is preserved as `runs/astheral-general-chat/pre-weighted.pt`.
+
+The watcher repeatedly assesses saved checkpoints in full 25-turn conversations and stores transcripts under `runs/astheral-general-chat/long-evaluations/`. It does not automatically select or publish a model based on keyword matches. A shorter rolling-history option is available to the evaluator as `--history-tokens`; experiments with that option do not change the chat default automatically.
+
+An optional auxiliary topic head (`--intent-weight 1`) trains on coarse labels derived from teacher answers, such as identity, food, music, and books. Its input is the causal hidden state before the answer begins, so it cannot see the future teacher answer. The labels and head are used only during training; chat does not import the labeler, route by topic, or look up a response. The head and its optimizer state are retained for faithful training resumption. The generator remains the same 419,496,960-parameter Astheral model. The snapshot before this objective is retained as `pre-intent.pt`.
+
 ## Local setup and training
 
 ```bash

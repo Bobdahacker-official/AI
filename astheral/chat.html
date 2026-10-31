@@ -11,7 +11,7 @@
 <script>
 const messages=[], form=document.querySelector('form'), input=document.querySelector('input'), button=document.querySelector('button');
 function add(role,text){const node=document.createElement('article');node.dataset.role=role;node.textContent=(role==='user'?'You':'Astheral')+'\n'+text;document.querySelector('main').append(node);node.scrollIntoView({behavior:'smooth'});}
-fetch('/health').then(r=>r.json()).then(h=>{document.querySelector('#status').textContent=`${h.parameters.toLocaleString()} parameters · checkpoint step ${h.checkpoint_step.toLocaleString()}. Experimental checkpoint: responses may be incoherent during early training.`;}).catch(()=>{document.querySelector('#status').textContent='Could not read model status.';});
+fetch('/health').then(r=>r.json()).then(h=>{document.querySelector('#status').textContent='Ready to chat. Recent messages stay in context as the conversation grows.';}).catch(()=>{document.querySelector('#status').textContent='Could not read model status.';});
 form.addEventListener('submit',async e=>{e.preventDefault();const text=input.value.trim();if(!text)return;messages.push({role:'user',content:text});add('user',text);input.value='';button.disabled=true;try{const r=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages,max_tokens:64})});const data=await r.json();if(!r.ok)throw Error(data.error);messages.push({role:'assistant',content:data.response});add('assistant',data.response);}catch(error){messages.pop();add('assistant','Generation failed: '+error.message);}finally{button.disabled=false;input.focus();}});
 </script>
 </html>

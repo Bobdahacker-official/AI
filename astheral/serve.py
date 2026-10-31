@@ -34,7 +34,7 @@ def main():
             if self.path == "/":
                 self.respond(200, page, "text/html; charset=utf-8")
             elif self.path == "/health":
-                self.respond(200, {"model": "Astheral", "parameters": assistant.model.parameter_count, "checkpoint_step": assistant.step, "tokens_seen": assistant.tokens_seen, "validation_loss": assistant.validation_loss})
+                self.respond(200, {"model": "Astheral", "parameters": assistant.model.parameter_count, "checkpoint_step": assistant.step, "tokens_seen": assistant.tokens_seen, "validation_loss": assistant.validation_loss, "context_tokens": assistant.model.cfg.context, "evaluation_user_turns": 25})
             else:
                 self.respond(404, {"error": "Not found"})
 
