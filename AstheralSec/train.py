@@ -1,6 +1,8 @@
 """Low-duty-cycle LoRA training. Only assistant response tokens contribute loss."""
 import argparse
+from datetime import datetime, timezone
 import hashlib
+import importlib.metadata
 import json
 import random
 import time
@@ -30,7 +32,7 @@ def main():
     lockpath.write_text(json.dumps(lock, indent=2) + "\n")
     tok = AutoTokenizer.from_pretrained(BASE, revision=lock["revision"])
     model = AutoModelForCausalLM.from_pretrained(BASE, revision=lock["revision"],
-        torch_dtype=torch.float32 if a.device == "cpu" else torch.bfloat16,
+        dtype=torch.float32 if a.device == "cpu" else torch.bfloat16,
         attn_implementation="sdpa", trust_remote_code=False).to(a.device)
     model.config.use_cache = False
     model = get_peft_model(model, LoraConfig(r=4, lora_alpha=8, lora_dropout=0.05,
@@ -42,8 +44,10 @@ def main():
     batches = []
     for row in rows:
         msgs = [{"role":"system", "content":SYSTEM}, {"role":"user", "content":row["prompt"]}]
-        prefix = tok.apply_chat_template(msgs, tokenize=True, add_generation_prompt=True)
-        full = tok.apply_chat_template(msgs + [{"role":"assistant", "content":row["answer"]}], tokenize=True)
+        prefix = tok.apply_chat_template(msgs, tokenize=True, add_generation_prompt=True, return_dict=False)
+        full = tok.apply_chat_template(msgs + [{"role":"assistant", "content":row["answer"]}], tokenize=True, return_dict=False)
+        if full[:len(prefix)] != prefix:
+            raise ValueError("Chat template prefix mismatch; assistant loss mask would be incorrect")
         if len(full) > 384:
             raise ValueError("Training example exceeds 384 tokens; shorten it instead of truncating the answer")
         ids = torch.tensor([full], device=a.device)
@@ -76,11 +80,15 @@ def main():
     out = ROOT / "weights"
     model.save_pretrained(out, safe_serialization=True)
     report = {"name":"Astheral Flint", "status":"locally trained; commercial release qualification pending",
+        "completed_at_utc":datetime.now(timezone.utc).isoformat(),
+        "software":{name:importlib.metadata.version(name) for name in ["torch","transformers","peft","accelerate","huggingface-hub","safetensors","psutil"]},
         "base":lock, "steps":a.steps, "examples":len(rows), "seed":42,
         "trainable_parameters":sum(p.numel() for p in model.parameters() if p.requires_grad),
         "device":a.device, "cpu_threads":2, "duty_cycle":a.duty_cycle,
         "elapsed_seconds":round(time.monotonic()-started,2), "peak_rss_bytes":peak_rss,
         "peak_cuda_allocated_bytes":torch.cuda.max_memory_allocated() if a.device=="cuda" else 0,
+        "peak_cuda_reserved_bytes":torch.cuda.max_memory_reserved() if a.device=="cuda" else 0,
+        "gpu":torch.cuda.get_device_name() if a.device=="cuda" else None,
         "dataset_sha256":hashlib.sha256(raw).hexdigest(), "history":history,
         "limitations":"Small synthetic corpus; training loss is not a capability or safety benchmark."}
     (ROOT / "training_report.json").write_text(json.dumps(report, indent=2)+"\n")

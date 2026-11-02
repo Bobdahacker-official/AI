@@ -6,7 +6,7 @@ The software and original training examples are free under the MIT license. The 
 
 ## Install and run on Windows
 
-Requires Python 3.13 and approximately 5 GB free disk for the installed runtime and model cache (more while downloading). The first run downloads the pinned base model, approximately 1 GB. Internet is unnecessary for subsequent inference once cached.
+Requires Python 3.13 and at least 12 GB free disk during the first CUDA setup and parallel download. The first run downloads the pinned base model, approximately 1 GB. Internet is unnecessary for subsequent inference once cached.
 
 ```powershell
 cd AstheralSec

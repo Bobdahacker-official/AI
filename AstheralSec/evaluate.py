@@ -9,8 +9,11 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--device", choices=["cpu","cuda"], default="cuda")
     p.add_argument("--max-new-tokens", type=int, default=128)
+    p.add_argument("--duty-cycle", type=float, default=0.20)
     a = p.parse_args()
-    torch, tok, model = load(device=a.device)
+    if not 0 < a.duty_cycle <= 1:
+        p.error("duty-cycle must be in (0,1]")
+    torch, tok, model = load(device=a.device, offline=True)
     model.eval()
     rows = [json.loads(s) for s in (ROOT/"data/eval.jsonl").read_text().splitlines()]
     results = []
@@ -31,7 +34,7 @@ def main():
             else:
                 answer = generate()
             pair[name] = {"answer":answer,"seconds":round(time.monotonic()-started,2)}
-            time.sleep(1)
+            time.sleep((time.monotonic()-started) * (1/a.duty_cycle-1))
         pair["human_pass"] = None
         results.append(pair)
         print(f"Recorded {row['category']}",flush=True)

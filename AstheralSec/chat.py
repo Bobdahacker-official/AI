@@ -5,10 +5,11 @@ from common import load, SYSTEM
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("prompt", nargs="?")
-    p.add_argument("--device", choices=["cpu", "cuda"], default="cpu")
+    p.add_argument("--device", choices=["cpu", "cuda"], default="cuda")
     p.add_argument("--max-new-tokens", type=int, default=192)
+    p.add_argument("--offline", action="store_true", help="Use only cached base-model files")
     a = p.parse_args()
-    torch, tok, model = load(device=a.device)
+    torch, tok, model = load(device=a.device, offline=a.offline)
     model.eval()
     while True:
         question = a.prompt or input("You (exit to quit): ")
