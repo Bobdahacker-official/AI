@@ -36,7 +36,7 @@ def main():
         attn_implementation="sdpa", trust_remote_code=False).to(a.device)
     model.config.use_cache = False
     model = get_peft_model(model, LoraConfig(r=4, lora_alpha=8, lora_dropout=0.05,
-        target_modules=["q_proj", "v_proj"], bias="none", task_type="CAUSAL_LM"))
+        target_modules=["q_proj", "v_proj"], bias="none", task_type="CAUSAL_LM", revision=lock["revision"]))
     model.train()
     opt = torch.optim.AdamW((p for p in model.parameters() if p.requires_grad), lr=1e-4)
     raw = (ROOT / "data/train.jsonl").read_bytes()

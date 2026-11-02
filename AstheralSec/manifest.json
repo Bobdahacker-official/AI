@@ -1,0 +1,11 @@
+{
+  "sha256": {
+    "weights/adapter_model.safetensors": "b9ff87c9beee23a35ee7ca86be33a7092766c7dc0c0785ee45859601308fd359",
+    "weights/adapter_config.json": "5bf7d3281627db2962cae8ded6a10fb065f49c343abaca777502fbe81f11bf88",
+    "base_model.json": "3d634e4d25a18258e0c693e58f1942f93721f522990a17f4f77631ff87e5bb97",
+    "data/train.jsonl": "588d9c7a4771f16d4928c363098fb09b5ac6806838b63ebb8cce6fe601e8650a",
+    "common.py": "1adf5ad11a119e8f083d1b2c69962947cf26e1adf0340b245de037951497be64",
+    "chat.py": "277bd7fa87c1c09eb18baf42f3f252712ec9db7b4dfa395cc4b860cbe5bb1710",
+    "lab_tools.py": "8bfed64c7931d7171ba42ff25cb27dc72fe370d28104001dc12ca3faa6179170"
+  }
+}
