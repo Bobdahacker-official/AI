@@ -1,0 +1,5 @@
+{
+  "authorization_confirmed": false,
+  "targets": ["127.0.0.1"],
+  "ports": [8000, 8080]
+}
