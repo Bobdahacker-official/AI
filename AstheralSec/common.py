@@ -22,7 +22,7 @@ def configure():
     torch.set_num_interop_threads(1)
     return torch
 
-def load(adapter=True, device="cpu", offline=False):
+def load(adapter=True, device="cpu", offline=False, merge=True):
     torch = configure()
     if device == "cuda":
         torch.cuda.set_per_process_memory_fraction(0.30)
@@ -37,4 +37,6 @@ def load(adapter=True, device="cpu", offline=False):
     ).to(device)
     if adapter:
         model = PeftModel.from_pretrained(model, ROOT / "weights")
+        if merge:
+            model = model.merge_and_unload(safe_merge=True)
     return torch, tokenizer, model

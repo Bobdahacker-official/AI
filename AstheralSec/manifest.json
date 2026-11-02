@@ -1,11 +1,15 @@
 {
+  "hash_mode": "SHA256 raw binary; LF-normalized UTF-8 text",
   "sha256": {
-    "weights/adapter_model.safetensors": "b9ff87c9beee23a35ee7ca86be33a7092766c7dc0c0785ee45859601308fd359",
-    "weights/adapter_config.json": "5bf7d3281627db2962cae8ded6a10fb065f49c343abaca777502fbe81f11bf88",
-    "base_model.json": "3d634e4d25a18258e0c693e58f1942f93721f522990a17f4f77631ff87e5bb97",
-    "data/train.jsonl": "588d9c7a4771f16d4928c363098fb09b5ac6806838b63ebb8cce6fe601e8650a",
-    "common.py": "1adf5ad11a119e8f083d1b2c69962947cf26e1adf0340b245de037951497be64",
+    "weights/adapter_model.safetensors": "5feb9241c6a00ef027ce3fb9fec328d7245a6d97e961cd67ec3814575b2c0ae4",
+    "weights/adapter_config.json": "f1aa027ae15a28325017925284b29614ef139e39b57095a2ea7d36cd6b3a1e93",
+    "base_model.json": "26b69e91eb2ea0f361448ed72f45d64fad078742b4cc677576e8fc230b2e6187",
+    "data/train.jsonl": "85c8e6ec669d6d907fb945f11c84cf94c9dac9b6bf9a042a9974eb7316c869f5",
+    "training_report.json": "34b4b611750000ae385c2b4de64e20b3c6a54670c441c44ad9420c9cd6a29103",
+    "common.py": "ff18617979a8817c0f4bcc09a3feef1e94f3f6f2f346446790094f1748e564d8",
     "chat.py": "277bd7fa87c1c09eb18baf42f3f252712ec9db7b4dfa395cc4b860cbe5bb1710",
-    "lab_tools.py": "8bfed64c7931d7171ba42ff25cb27dc72fe370d28104001dc12ca3faa6179170"
+    "lab_tools.py": "8bfed64c7931d7171ba42ff25cb27dc72fe370d28104001dc12ca3faa6179170",
+    "train.py": "ad2e10c4231d3225642c031bef0976ef7b40d319e16c3c289aab96540df17583",
+    "build_data.py": "1174e6436d16b2a7e32e4f7f127271ef698e7d33c04a8cc46ae42e578395266d"
   }
 }

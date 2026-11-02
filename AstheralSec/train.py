@@ -10,7 +10,7 @@ from common import ROOT, BASE, SYSTEM, configure
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--steps", type=int, default=256)
+    p.add_argument("--steps", type=int, default=512)
     p.add_argument("--duty-cycle", type=float, default=0.20)
     p.add_argument("--device", choices=["cpu", "cuda"], default="cuda")
     a = p.parse_args()
@@ -36,9 +36,9 @@ def main():
         attn_implementation="sdpa", trust_remote_code=False).to(a.device)
     model.config.use_cache = False
     model = get_peft_model(model, LoraConfig(r=4, lora_alpha=8, lora_dropout=0.05,
-        target_modules=["q_proj", "v_proj"], bias="none", task_type="CAUSAL_LM", revision=lock["revision"]))
+        target_modules="all-linear", bias="none", task_type="CAUSAL_LM", revision=lock["revision"]))
     model.train()
-    opt = torch.optim.AdamW((p for p in model.parameters() if p.requires_grad), lr=1e-4)
+    opt = torch.optim.AdamW((p for p in model.parameters() if p.requires_grad), lr=2e-4)
     raw = (ROOT / "data/train.jsonl").read_bytes()
     rows = [json.loads(line) for line in raw.decode().splitlines()]
     batches = []
@@ -84,14 +84,18 @@ def main():
         "software":{name:importlib.metadata.version(name) for name in ["torch","transformers","peft","accelerate","huggingface-hub","safetensors","psutil"]},
         "base":lock, "steps":a.steps, "examples":len(rows), "seed":42,
         "trainable_parameters":sum(p.numel() for p in model.parameters() if p.requires_grad),
+        "lora_rank":4,"target_modules":"all-linear","learning_rate":2e-4,
         "device":a.device, "cpu_threads":2, "duty_cycle":a.duty_cycle,
         "elapsed_seconds":round(time.monotonic()-started,2), "peak_rss_bytes":peak_rss,
         "peak_cuda_allocated_bytes":torch.cuda.max_memory_allocated() if a.device=="cuda" else 0,
         "peak_cuda_reserved_bytes":torch.cuda.max_memory_reserved() if a.device=="cuda" else 0,
         "gpu":torch.cuda.get_device_name() if a.device=="cuda" else None,
         "dataset_sha256":hashlib.sha256(raw).hexdigest(), "history":history,
+        "dataset_canonical_sha256":hashlib.sha256(raw.replace(b"\r\n",b"\n")).hexdigest(),
         "limitations":"Small synthetic corpus; training loss is not a capability or safety benchmark."}
     (ROOT / "training_report.json").write_text(json.dumps(report, indent=2)+"\n")
+    from verify_artifacts import write_manifest
+    write_manifest()
     print("Saved trained adapter and training_report.json", flush=True)
 
 if __name__ == "__main__":

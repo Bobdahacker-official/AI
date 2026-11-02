@@ -6,7 +6,7 @@ The software and original training examples are free under the MIT license. The 
 
 ## Install and run on Windows
 
-Requires Python 3.13 and at least 12 GB free disk during the first CUDA setup and parallel download. The first run downloads the pinned base model, approximately 1 GB. Internet is unnecessary for subsequent inference once cached.
+Requires Python 3.13 and at least 16 GB free disk during the first CUDA setup and parallel download. The first run downloads the pinned base model, approximately 1 GB. Internet is unnecessary for subsequent inference once cached.
 
 ```powershell
 cd AstheralSec
@@ -22,14 +22,14 @@ CPU inference is also available with `--device cpu`; no paid API or account is r
 
 ```powershell
 .\.venv\Scripts\python.exe build_data.py
-.\.venv\Scripts\python.exe train.py --device cuda --steps 256 --duty-cycle 0.20
+.\.venv\Scripts\python.exe train.py --device cuda --steps 512 --duty-cycle 0.20
 .\.venv\Scripts\python.exe evaluate.py --device cuda
 .\.venv\Scripts\python.exe -m unittest -v test_project.py
 ```
 
-Training uses batch size 1, at most 384 tokens, rank-4 query/value LoRA, two CPU intra-operation threads, and one inter-operation thread. The CUDA allocator is capped at 30% of device memory (approximately 2.4 GB on an 8 GB GPU). This cap excludes driver/context and other processes. Training sleeps for four times each active step's duration at a duty cycle of 0.20. This reduces average activity, but does not cap instantaneous GPU utilization. Stop with Ctrl+C; completed training writes the adapter and report. This script starts a fresh run rather than resuming optimizer state.
+Training uses batch size 1, at most 384 tokens, rank-4 LoRA on all linear layers, two CPU intra-operation threads, and one inter-operation thread. The CUDA allocator is capped at 30% of device memory (approximately 2.4 GB on an 8 GB GPU). This cap excludes driver/context and other processes. Training sleeps for four times each active step's duration at a duty cycle of 0.20. This reduces average activity, but does not cap instantaneous GPU utilization. Stop with Ctrl+C; completed training writes the adapter and report. This script starts a fresh run rather than resuming optimizer state. Successful training refreshes the artifact checksums automatically. Chat merges the adapter for inference; --offline uses only cached base files.
 
-The dataset contains 52 original synthetic instruction pairs. The evaluation set contains 12 separate prompts and review criteria. These are a starting corpus, not sufficient evidence of broad professional competence. The fine-tune adapts an existing pretrained model; it does not train a foundation model from scratch. Public web sources informed architecture and scope; their contents were not scraped into training data.
+The dataset contains 104 question forms covering 52 original synthetic instruction intents. The evaluation set contains 12 separate prompts and review criteria. These are a starting corpus, not sufficient evidence of broad professional competence. The fine-tune adapts an existing pretrained model; it does not train a foundation model from scratch. Public web sources informed architecture and scope; their contents were not scraped into training data.
 
 ## Practical lab tools
 

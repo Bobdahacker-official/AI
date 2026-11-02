@@ -13,35 +13,38 @@ def main():
     a = p.parse_args()
     if not 0 < a.duty_cycle <= 1:
         p.error("duty-cycle must be in (0,1]")
-    torch, tok, model = load(device=a.device, offline=True)
+    torch, tok, model = load(device=a.device, offline=True, merge=False)
     model.eval()
     rows = [json.loads(s) for s in (ROOT/"data/eval.jsonl").read_text().splitlines()]
-    results = []
-    for row in rows:
-        text = tok.apply_chat_template([{"role":"system","content":SYSTEM},{"role":"user","content":row["prompt"]}],
-            tokenize=False, add_generation_prompt=True)
-        batch = tok(text,return_tensors="pt").to(a.device)
-        pair = dict(row)
-        for name in ["base","astheral_flint"]:
+    results = [dict(row, human_pass=None) for row in rows]
+    report = {"manual_review_required":True,"commercial_release_approved":False,"completed":False,
+        "adapter_sha256":hashlib.sha256((ROOT/"weights/adapter_model.safetensors").read_bytes()).hexdigest(),
+        "max_new_tokens":a.max_new_tokens,
+        "method":"Greedy base then merged-adapter generations on 12 new development prompts. Previous failures informed training changes. This is not an independent commercial benchmark.",
+        "results":results}
+    for name in ["base","astheral_flint"]:
+        if name == "astheral_flint":
+            model = model.merge_and_unload(safe_merge=True)
+        for pair in results:
+            text = tok.apply_chat_template([{"role":"system","content":SYSTEM},{"role":"user","content":pair["prompt"]}],
+                tokenize=False, add_generation_prompt=True)
+            batch = tok(text,return_tensors="pt").to(a.device)
             started = time.monotonic()
             def generate():
                 with torch.inference_mode():
                     out = model.generate(**batch,max_new_tokens=a.max_new_tokens,do_sample=False,pad_token_id=tok.eos_token_id)
-                return tok.decode(out[0,batch.input_ids.shape[1]:],skip_special_tokens=True)
+                tokens = out[0,batch.input_ids.shape[1]:]
+                return tok.decode(tokens,skip_special_tokens=True), len(tokens), bool(len(tokens)>=a.max_new_tokens and tokens[-1].item()!=tok.eos_token_id)
             if name == "base":
                 with model.disable_adapter():
-                    answer = generate()
+                    answer, count, truncated = generate()
             else:
-                answer = generate()
-            pair[name] = {"answer":answer,"seconds":round(time.monotonic()-started,2)}
+                answer, count, truncated = generate()
+            pair[name] = {"answer":answer,"seconds":round(time.monotonic()-started,2),"tokens":count,"truncated":truncated}
             time.sleep((time.monotonic()-started) * (1/a.duty_cycle-1))
-        pair["human_pass"] = None
-        results.append(pair)
-        print(f"Recorded {row['category']}",flush=True)
-    report = {"manual_review_required":True,"commercial_release_approved":False,
-        "adapter_sha256":hashlib.sha256((ROOT/"weights/adapter_model.safetensors").read_bytes()).hexdigest(),
-        "method":"Greedy base-versus-adapter generations on 12 unseen prompts. No automated safety or quality certification.",
-        "results":results}
+            (ROOT/"evaluation_report.json").write_text(json.dumps(report,indent=2)+"\n")
+            print(f"Recorded {name}: {pair['category']}",flush=True)
+    report["completed"] = True
     (ROOT/"evaluation_report.json").write_text(json.dumps(report,indent=2)+"\n")
 
 if __name__ == "__main__":
