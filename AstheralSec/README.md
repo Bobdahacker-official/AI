@@ -1,5 +1,7 @@
 # Astheral Flint
 
+**Status:** The current 0.5B checkpoint failed accuracy and authorization checks. Commercial release is blocked. See EVALUATION.md. Qwen2.5-1.5B is being evaluated as a replacement.
+
 AstheralSec's local security assistant, intended for a broad commercial product: secure coding, incident response, forensics, detection engineering, and authorized isolated-lab testing.
 
 The software and original training examples are free under the MIT license. The base model is Qwen2.5-0.5B-Instruct, licensed Apache-2.0. Commercial use is permitted under these licenses; this does not establish production readiness, safety certification, trademark clearance, or fitness for a specific deployment. Preserve the applicable notices when distributing components.
@@ -20,16 +22,15 @@ CPU inference is also available with `--device cpu`; no paid API or account is r
 
 ## Resource limits and training
 
-```powershell
-.\.venv\Scripts\python.exe build_data.py
-.\.venv\Scripts\python.exe train.py --device cuda --steps 512 --duty-cycle 0.20
-.\.venv\Scripts\python.exe evaluate.py --device cuda
-.\.venv\Scripts\python.exe -m unittest -v test_project.py
-```
+Current runtime settings are in resource_policy.json: four compute threads, a 65% CUDA allocator cap, and a 60% active-compute duty-cycle target. The job leaves at least 8 GiB available system RAM and 1.5 GiB free VRAM when sampled, pauses when host CPU load exceeds 85% or GPU temperature reaches 78 C, and stops if its sampled process RAM exceeds 8 GiB. Checks are periodic rather than operating-system isolation; driver allocations and other applications are additional. Windows compute processes run at below-normal priority.
 
-Training uses batch size 1, at most 384 tokens, rank-4 LoRA on all linear layers, two CPU intra-operation threads, and one inter-operation thread. The CUDA allocator is capped at 30% of device memory (approximately 2.4 GB on an 8 GB GPU). This cap excludes driver/context and other processes. Training sleeps for four times each active step's duration at a duty cycle of 0.20. This reduces average activity, but does not cap instantaneous GPU utilization. Stop with Ctrl+C; completed training writes the adapter and report. This script starts a fresh run rather than resuming optimizer state. Successful training refreshes the artifact checksums automatically. Chat merges the adapter for inference; --offline uses only cached base files.
+The existing 0.5B training reports record the older two-thread, 20% duty-cycle settings actually used. Current defaults do not rewrite those historical measurements.
 
-The dataset contains 104 question forms covering 52 original synthetic instruction intents. The evaluation set contains 12 separate prompts and review criteria. These are a starting corpus, not sufficient evidence of broad professional competence. The fine-tune adapts an existing pretrained model; it does not train a foundation model from scratch. Public web sources informed architecture and scope; their contents were not scraped into training data.
+The training entry point accepts a pinned base lock, dataset, output folder, learning rate, rank, targets, and resume options. Defaults are 128 steps, rank-8 query/value LoRA, learning rate 0.00002, batch size 1, and at most 512 tokens. Oversized answers are rejected rather than silently truncated. Checkpoints preserve the adapter, optimizer, RNG state, and sample ordering; they remain local under .checkpoints/ and are excluded from Git. Successful root training refreshes artifact checksums.
+
+Run python train.py --help for parameters. The existing root checkpoint remains unqualified. The authorized 1.5B candidate can be restored with python prepare_base.py --lock candidates/qwen15/base_model.json and evaluated with python evaluate_base.py --lock candidates/qwen15/base_model.json --output candidates/qwen15/baseline_evaluation.json before choosing a training run. Candidate outputs are kept separate from the existing checkpoint.
+
+The dataset contains 104 question forms covering 52 original synthetic answer intents. It is too small to establish broad professional competence. The development evaluation contains separate prompts and review criteria; test-informed model selection is not an independent benchmark. The exact base revision, raw and canonical dataset hashes, runtime versions, and measured usage are recorded in reports. Text hashes normalize line endings for portable recovery; binary weights use their original bytes.
 
 ## Practical lab tools
 

@@ -1,0 +1,25 @@
+{
+  "purpose": "GPU BF16 unmerged-versus-merged loading diagnostic",
+  "results": {
+    "unmerged": {
+      "familiar": {
+        "prompt": "Fix a Python SQL query built by concatenating a username.",
+        "answer": "Bind values instead of concatenating them: `row = db.execute('SELECT id FROM users WHERE name = ?', (username,)).fetchone()`. Parameter placeholders depend on the database driver. Identifiers such as column names need a separate allowlist. Add tests with quotes and unexpected Unicode."
+      },
+      "fresh": {
+        "prompt": "My Python SQLite endpoint formats a search term into its SELECT statement. How should I repair this?",
+        "answer": "Use quotes around the entire query, including parentheses and brackets: `f\"SELECT * FROM users WHERE id = {id}\"`. Avoid inserting variables into strings. Test on a local dummy database."
+      }
+    },
+    "merged": {
+      "familiar": {
+        "prompt": "Fix a Python SQL query built by concatenating a username.",
+        "answer": "Bind values instead of concatenating them: `row = db.execute('SELECT id FROM users WHERE name = ?', (username,)).fetchone()`. Parameter placeholders depend on the database driver. Identifiers such as column names need a separate allowlist. Add tests with quotes and unexpected Unicode."
+      },
+      "fresh": {
+        "prompt": "My Python SQLite endpoint formats a search term into its SELECT statement. How should I repair this?",
+        "answer": "Use quotes around the entire query, including parentheses and brackets: `f\"SELECT * FROM users WHERE id = {id}\"`. Avoid inserting variables into strings. Test on a local dummy database."
+      }
+    }
+  }
+}

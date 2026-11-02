@@ -14,25 +14,25 @@ SYSTEM = (
 )
 
 def configure():
-    os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
-    os.environ.setdefault("OMP_NUM_THREADS", "2")
-    os.environ.setdefault("MKL_NUM_THREADS", "2")
-    import torch
-    torch.set_num_threads(2)
-    torch.set_num_interop_threads(1)
-    return torch
+    from resources import configure_torch
+    return configure_torch()
 
-def load(adapter=True, device="cpu", offline=False, merge=True):
+def load(adapter=True, device="cpu", offline=False, merge=True, lock_path=None):
     torch = configure()
+    from resources import configure_gpu, wait_for_headroom
     if device == "cuda":
-        torch.cuda.set_per_process_memory_fraction(0.30)
+        configure_gpu(torch)
     from transformers import AutoTokenizer, AutoModelForCausalLM
     from peft import PeftModel
     import json
-    lock = json.loads((ROOT / "base_model.json").read_text())
-    tokenizer = AutoTokenizer.from_pretrained(BASE, revision=lock["revision"], local_files_only=offline)
+    lock = json.loads(Path(lock_path or ROOT / "base_model.json").read_text())
+    name = lock["model"]
+    size = lock.get("weights_size_bytes",0)
+    wait_for_headroom(torch,device,required_ram_bytes=size*(2 if device=="cpu" else 1),
+        required_vram_bytes=size if device=="cuda" else 0)
+    tokenizer = AutoTokenizer.from_pretrained(name, revision=lock["revision"], local_files_only=offline)
     model = AutoModelForCausalLM.from_pretrained(
-        BASE, revision=lock["revision"], dtype=torch.float32 if device == "cpu" else torch.bfloat16,
+        name, revision=lock["revision"], dtype=torch.float32 if device == "cpu" else torch.bfloat16,
         attn_implementation="sdpa", trust_remote_code=False, local_files_only=offline,
     ).to(device)
     if adapter:

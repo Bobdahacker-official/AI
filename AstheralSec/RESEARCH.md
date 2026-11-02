@@ -17,3 +17,9 @@ The initial query/value-only rank-4 run failed seven of twelve development cases
 The revised run retains the exact base revision and resource caps, uses rank-4 adapters on all linear layers and a 0.0002 learning rate, and trains 104 question forms covering the same 52 original answer intents. This is broader adapter placement, not a change of foundation model. A different set of development prompts checks the same functional areas. The adapter is merged into the frozen base weights for normal chat inference; evaluation tests that same loading path after recording the unchanged-base outputs.
 
 This iteration is informed by failed development tests. Neither lower training loss nor passing these small development checks would establish commercial production readiness.
+
+## Authorized larger-base evaluation
+
+Qwen2.5-1.5B-Instruct is the next candidate, with Apache-2.0 licensing stated by its publisher: https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct . Its pinned revision, 3,087,467,144-byte weights size, and SHA256 are in candidates/qwen15/base_model.json. The unchanged base is evaluated before any adapter is trained or adopted. No quality improvement is assumed solely from parameter count.
+
+The user authorized higher resource use after live usage checks. The current shared-machine policy allows four compute threads, 65% CUDA allocator memory, and a 60% compute duty cycle, with periodic RAM, VRAM, CPU-load, and temperature headroom checks. The existing CUDA runtime is reused, and the candidate uses BF16 rather than adding a quantization backend. Historical reports retain the resource settings actually used for their runs.

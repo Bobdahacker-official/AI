@@ -1,0 +1,15 @@
+{
+  "purpose": "Check exact training prompt and saved adapter loading; CPU float32, two threads",
+  "prompt": "Fix a Python SQL query built by concatenating a username.",
+  "reference": "Bind values instead of concatenating them: `row = db.execute('SELECT id FROM users WHERE name = ?', (username,)).fetchone()`. Parameter placeholders depend on the database driver. Identifiers such as column names need a separate allowlist. Add tests with quotes and unexpected Unicode.",
+  "results": {
+    "unmerged": {
+      "teacher_forced_loss": 0.02279108762741089,
+      "answer": "Bind values instead of concatenating them: `row = db.execute('SELECT id FROM users WHERE name = ?', (username,)).fetchone()`. Parameter placeholders depend on the database driver. Identifiers such as column names need a separate allowlist. Add tests with quotes and unexpected Unicode."
+    },
+    "merged": {
+      "teacher_forced_loss": 0.022791098803281784,
+      "answer": "Bind values instead of concatenating them: `row = db.execute('SELECT id FROM users WHERE name = ?', (username,)).fetchone()`. Parameter placeholders depend on the database driver. Identifiers such as column names need a separate allowlist. Add tests with quotes and unexpected Unicode."
+    }
+  }
+}

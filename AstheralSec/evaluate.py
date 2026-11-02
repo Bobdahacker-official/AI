@@ -4,13 +4,15 @@ import hashlib
 import json
 import time
 from common import ROOT, SYSTEM, load
+from resources import policy,wait_for_headroom
 
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--device", choices=["cpu","cuda"], default="cuda")
     p.add_argument("--max-new-tokens", type=int, default=128)
-    p.add_argument("--duty-cycle", type=float, default=0.20)
+    p.add_argument("--duty-cycle", type=float, default=None)
     a = p.parse_args()
+    a.duty_cycle = policy()["duty_cycle"] if a.duty_cycle is None else a.duty_cycle
     if not 0 < a.duty_cycle <= 1:
         p.error("duty-cycle must be in (0,1]")
     torch, tok, model = load(device=a.device, offline=True, merge=False)
@@ -26,6 +28,7 @@ def main():
         if name == "astheral_flint":
             model = model.merge_and_unload(safe_merge=True)
         for pair in results:
+            wait_for_headroom(torch,a.device)
             text = tok.apply_chat_template([{"role":"system","content":SYSTEM},{"role":"user","content":pair["prompt"]}],
                 tokenize=False, add_generation_prompt=True)
             batch = tok(text,return_tensors="pt").to(a.device)

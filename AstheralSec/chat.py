@@ -1,6 +1,7 @@
 """Local chat only: no network tools, shell, or command execution."""
 import argparse
 from common import load, SYSTEM
+from resources import wait_for_headroom
 
 def main():
     p = argparse.ArgumentParser()
@@ -15,6 +16,7 @@ def main():
         question = a.prompt or input("You (exit to quit): ")
         if question.strip().lower() in {"exit", "quit"}:
             return
+        wait_for_headroom(torch,a.device)
         messages = [{"role":"system", "content":SYSTEM}, {"role":"user", "content":question}]
         text = tok.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
         batch = tok(text, return_tensors="pt").to(a.device)

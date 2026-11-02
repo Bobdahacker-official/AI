@@ -14,7 +14,8 @@ def digest_file(path):
 
 def write_manifest():
     names = ["weights/adapter_model.safetensors", "weights/adapter_config.json", "base_model.json",
-        "data/train.jsonl", "training_report.json", "common.py", "chat.py", "lab_tools.py", "train.py", "build_data.py"]
+        "data/train.jsonl", "training_report.json", "common.py", "chat.py", "lab_tools.py", "train.py", "build_data.py",
+        "resources.py", "resource_policy.json", "trainer.py"]
     manifest = {"hash_mode":"SHA256 raw binary; LF-normalized UTF-8 text",
         "sha256":{name:digest_file(ROOT/name) for name in names}}
     (ROOT/"manifest.json").write_text(json.dumps(manifest,indent=2)+"\n")

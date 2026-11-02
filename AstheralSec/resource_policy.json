@@ -1,0 +1,10 @@
+{
+  "cpu_threads": 4,
+  "gpu_memory_fraction": 0.65,
+  "duty_cycle": 0.6,
+  "min_available_ram_gib": 8,
+  "max_process_ram_gib": 8,
+  "min_free_vram_gib": 1.5,
+  "max_gpu_temperature_c": 78,
+  "max_host_cpu_percent": 85
+}
