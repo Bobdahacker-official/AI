@@ -18,7 +18,8 @@ $db->exec('PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL;');
 $db->exec("
 CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, email TEXT UNIQUE NOT NULL COLLATE NOCASE, username TEXT UNIQUE NOT NULL COLLATE NOCASE, pass TEXT NOT NULL, created INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS api_keys(user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, provider TEXT NOT NULL, enc TEXT NOT NULL, PRIMARY KEY(user_id, provider));
-CREATE TABLE IF NOT EXISTS settings(user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, system_prompt TEXT NOT NULL DEFAULT '', provider TEXT NOT NULL DEFAULT 'openai', model TEXT NOT NULL DEFAULT 'gpt-5', web INTEGER NOT NULL DEFAULT 0, deep INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS model_thinking(user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, provider TEXT NOT NULL, model TEXT NOT NULL, mode TEXT NOT NULL CHECK(mode IN ('on','off')), PRIMARY KEY(user_id,provider,model));
+CREATE TABLE IF NOT EXISTS settings(user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, system_prompt TEXT NOT NULL DEFAULT '', provider TEXT NOT NULL DEFAULT 'openai', model TEXT NOT NULL DEFAULT 'gpt-6-luna', web INTEGER NOT NULL DEFAULT 0, deep INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS chats(id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, title TEXT NOT NULL, created INTEGER NOT NULL, updated INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, chat_id INTEGER NOT NULL REFERENCES chats(id) ON DELETE CASCADE, role TEXT NOT NULL, content TEXT NOT NULL, provider TEXT, model TEXT, in_t INTEGER DEFAULT 0, out_t INTEGER DEFAULT 0, created INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS usage(id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, provider TEXT NOT NULL, model TEXT NOT NULL, in_t INTEGER NOT NULL, out_t INTEGER NOT NULL, created INTEGER NOT NULL);
@@ -99,16 +100,71 @@ const LENGTHS = [
 ];
 const DEEP_PROMPT = "\n\nDEEP ANALYSIS MODE IS ON. Work through the problem step by step before answering: define the question, consider alternatives and edge cases, check your reasoning and any code, then give a structured, thorough final answer with a short summary at the end.";
 
-// id => [name, base url, protocol, color, models]
+// id => [name, base URL, protocol, accent, chat model presets]
+const DEFAULT_CHAT_MODEL='gpt-6-luna';
 $P = [
-  'openai'     => ['OpenAI', 'https://api.openai.com/v1', 'oa', '#10a37f', ['gpt-5', 'gpt-5-mini', 'gpt-4.1', 'o4-mini']],
-  'anthropic'  => ['Anthropic', 'https://api.anthropic.com/v1', 'an', '#d97757', ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5']],
-  'google'     => ['Google Gemini', 'https://generativelanguage.googleapis.com/v1beta', 'gm', '#4285f4', ['gemini-2.5-pro', 'gemini-2.5-flash']],
-  'moonshot'   => ['Kimi', 'https://api.moonshot.ai/v1', 'oa', '#1f6feb', ['kimi-k2-0905-preview', 'kimi-k2-turbo-preview', 'moonshot-v1-128k']],
-  'deepseek'   => ['DeepSeek', 'https://api.deepseek.com/v1', 'oa', '#4d6bfe', ['deepseek-chat', 'deepseek-reasoner']],
-  'xai'        => ['xAI', 'https://api.x.ai/v1', 'oa', '#6b7280', ['grok-4', 'grok-3-mini']],
-  'openrouter' => ['OpenRouter', 'https://openrouter.ai/api/v1', 'oa', '#8b5cf6', ['openai/gpt-5', 'anthropic/claude-sonnet-4.5', 'meta-llama/llama-3.3-70b-instruct']],
+  'openai'     => ['OpenAI','https://api.openai.com/v1','oa','#10a37f',['gpt-6.2-astra','gpt-6.2-sol','gpt-6-luna','gpt-5.6-sol','gpt-5.5']],
+  'anthropic'  => ['Anthropic','https://api.anthropic.com/v1','an','#d97757',['claude-opus-5-5','claude-sonnet-5-5','claude-haiku-5-5','claude-fable-5-2']],
+  'google'     => ['Google Gemini','https://generativelanguage.googleapis.com/v1beta','gm','#4285f4',['gemini-4-hydrogen','gemini-4-argon','gemini-4-carbon','gemini-4-neon','gemini-3.8-flash','gemini-3.5-flash-lite']],
+  'moonshot'   => ['Kimi','https://api.moonshot.ai/v1','oa','#1f6feb',['kimi-k3.1-pro','kimi-k3.1-pro-highspeed','kimi-k3']],
+  'deepseek'   => ['DeepSeek','https://api.deepseek.com','oa','#4d6bfe',['deepseek-flash','deepseek-v4-pro']],
+  'xai'        => ['xAI','https://api.x.ai/v1','oa','#8d95a7',['grok-4.7']],
+  'openrouter' => ['OpenRouter','https://openrouter.ai/api/v1','oa','#8b5cf6',['openrouter/free','nvidia/nemotron-3-ultra-550b-a55b:free']],
+  'groq'       => ['Groq','https://api.groq.com/openai/v1','oa','#f55036',['openai/gpt-oss-20b','openai/gpt-oss-120b','qwen/qwen3.8-27b']],
+  'cloudflare' => ['Cloudflare Workers AI','https://api.cloudflare.com/client/v4/accounts','oa','#f6821f',['@cf/openai/gpt-oss-20b','@cf/openai/gpt-oss-120b','@cf/meta/llama-3.1-8b-instruct']],
+  'cerebras'   => ['Cerebras','https://api.cerebras.ai/v1','oa','#c78cff',['gpt-oss-120b','qwen-3.8-27b']],
+  'mistral'    => ['Mistral AI','https://api.mistral.ai/v1','oa','#f3a519',['mistral-small-2603','mistral-medium-3-5','mistral-large-4-0','ministral-8b-latest']],
+  'together'   => ['Together AI','https://api.together.ai/v1','oa','#48adf0',['openai/gpt-oss-120b','deepseek-ai/DeepSeek-V4.1-Flash-1017','moonshotai/Kimi-K3']],
 ];
+const THINKING_PATTERNS=[
+  'openai'=>'^(?:gpt-(?:5|6)(?:[.\-]|$)(?!.*chat)|o[134](?:[.\-]|$))',
+  'anthropic'=>'^claude-(?:fable|opus|sonnet|haiku)-(?:4|5)(?:[.\-]|$)',
+  'google'=>'^(?:models/)?gemini-(?:[34](?:[.\-]|$)(?!.*(?:tts|image|live))|2\.5-(?:pro|flash)(?:[.\-]|$))',
+  'moonshot'=>'^kimi-(?:k3|k2\.(?:6|7)|k2-thinking)',
+  'deepseek'=>'^deepseek-(?:flash|v4|reasoner)(?:[.\-]|$)',
+  'xai'=>'^(?:grok-4(?:[.\-]|$)(?!.*non-reasoning)|grok-3-mini)',
+  'openrouter'=>'^(?:openai/(?:gpt-(?:5|6)(?!.*chat)|gpt-oss|o[134](?:[.\-]|$))|anthropic/claude-(?:fable|opus|sonnet|haiku)-(?:4|5)|google/gemini-[34](?!.*(?:tts|image|live))|deepseek/deepseek-(?:v4|r1|reasoner)|moonshotai/kimi-k(?:3|2\.(?:6|7))|x-ai/grok-4(?!.*non-reasoning)|nvidia/nemotron-3|qwen/qwen3\.[68])',
+  'groq'=>'^(?:openai/gpt-oss-(?:20b|120b)|qwen/qwen3\.8-27b)$',
+  'cloudflare'=>'^@cf/openai/gpt-oss-(?:20b|120b)$',
+  'cerebras'=>'^(?:gpt-oss-120b|qwen-3\.8-27b)$',
+  'mistral'=>'^mistral-(?:small-(?:2603|latest)|medium-3-5|large-4(?:-0)?)$',
+  'together'=>'^(?:openai/gpt-oss-120b|deepseek-ai/deepseek-v4|moonshotai/kimi-k3)',
+];
+const PROVIDER_ACCESS=[
+  'openai'=>['docs'=>'https://developers.openai.com/api/docs/models'],
+  'anthropic'=>['docs'=>'https://platform.claude.com/docs/en/models/overview'],
+  'google'=>['docs'=>'https://aistudio.google.com/docs/models','free'=>['gemini-4-hydrogen']],
+  'moonshot'=>['docs'=>'https://platform.kimi.ai/docs/models'],
+  'deepseek'=>['docs'=>'https://api-docs.deepseek.com/quick_start/pricing/'],
+  'xai'=>['docs'=>'https://docs.x.ai/developers/models'],
+  'openrouter'=>['docs'=>'https://openrouter.ai/collections/free-models','free'=>['openrouter/free','nvidia/nemotron-3-ultra-550b-a55b:free']],
+  'groq'=>['docs'=>'https://console.groq.com/docs/rate-limits','free'=>['openai/gpt-oss-20b','openai/gpt-oss-120b']],
+  'cloudflare'=>['docs'=>'https://developers.cloudflare.com/workers-ai/platform/pricing/','free'=>['@cf/openai/gpt-oss-20b','@cf/openai/gpt-oss-120b','@cf/meta/llama-3.1-8b-instruct'],'account'=>true],
+  'cerebras'=>['docs'=>'https://inference-docs.cerebras.ai/models/overview','trial'=>true],
+  'mistral'=>['docs'=>'https://docs.mistral.ai/inference/model-selection'],
+  'together'=>['docs'=>'https://docs.together.ai/docs/serverless/models'],
+];
+const LEGACY_PRESETS=[
+  'openai'=>['gpt-5','gpt-5-mini','gpt-4.1','o4-mini'],
+  'google'=>['gemini-2.5-pro','gemini-2.5-flash','gemini-3.5-flash'],
+  'moonshot'=>['kimi-k2-0905-preview','kimi-k2-turbo-preview','moonshot-v1-128k'],
+  'deepseek'=>['deepseek-chat','deepseek-reasoner'],
+  'xai'=>['grok-4','grok-3-mini'],
+];
+function is_thinking_model(string $provider,string $model): bool {
+  $pattern=THINKING_PATTERNS[$provider]??null;
+  return $pattern!==null && preg_match('~'.$pattern.'~i',$model)===1;
+}
+function model_id_valid(string $model): bool {
+  return (bool)preg_match('~^[\w.@:/-]{1,100}$~D',$model);
+}
+function cloudflare_credentials(string $value): ?array {
+  return preg_match('/^([a-f0-9]{32})\|([A-Za-z0-9._~-]{10,255})$/iD',$value,$m)?[strtolower($m[1]),$m[2]]:null;
+}
+function thinking_preference(int $uid,string $provider,string $model): bool {
+  $mode=q('SELECT mode FROM model_thinking WHERE user_id=? AND provider=? AND model=?',[$uid,$provider,$model])->fetchColumn();
+  return $mode===false?is_thinking_model($provider,$model):$mode==='on';
+}
 
 function out($d, int $c = 200): void { http_response_code($c); header('Content-Type: application/json'); echo json_encode($d, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE); exit; }
 function fail(string $m, int $c = 400): void { out(['error' => $m], $c); }
@@ -608,38 +664,91 @@ function sse(array $d): void { echo 'data: ' . json_encode($d, JSON_UNESCAPED_UN
 function stream_model(string $prov, string $model, string $key, string $system, array $msgs, bool $think, callable $emit, int $maxTok = 8192, int $wallTime = 300, bool $requireComplete = false): array {
   global $P; [, $base, $proto] = $P[$prov];
   $text = ''; $reason = ''; $tin = 0; $tout = 0; $H = ['Content-Type: application/json'];
-  if ($proto === 'oa') {
-    $url = "$base/chat/completions"; $H[] = "Authorization: Bearer $key";
-    $body = ['model' => $model, 'stream' => true, 'stream_options' => ['include_usage' => true], 'messages' => $system !== '' ? array_merge([['role' => 'system', 'content' => $system]], $msgs) : $msgs];
-    $reasoningModel = preg_match('~^(o[1-9]|gpt-5(?!.*chat))~', $model);
-    $body[$prov === 'openai' && $reasoningModel ? 'max_completion_tokens' : 'max_tokens'] = $maxTok;
-    if ($prov === 'openai' && $reasoningModel) {
-      $offEffort = preg_match('~^gpt-5\.[1-9]~', $model) ? 'none' : (str_starts_with($model, 'gpt-5') ? 'minimal' : 'low');
-      $body['reasoning_effort'] = $think ? 'high' : $offEffort;
-    } elseif ($prov === 'openrouter') {
-      $body['reasoning'] = $think ? ['effort'=>'high'] : ['enabled'=>false,'exclude'=>true];
-    } elseif ($prov === 'deepseek' && in_array($model, ['deepseek-chat','deepseek-reasoner'], true)) {
-      $body['thinking'] = ['type'=>$think ? 'enabled' : 'disabled'];
-    } elseif ($prov === 'moonshot' && preg_match('/^kimi-k2\.[56]/', $model)) {
-      $body['thinking'] = ['type'=>$think ? 'enabled' : 'disabled'];
-    } elseif ($prov === 'xai' && str_starts_with($model, 'grok-3-mini')) {
-      $body['reasoning_effort'] = $think ? 'high' : 'low';
+  if ($prov==='xai'&&preg_match('/^grok-4\.[5-9](?:-|$)/i',$model)) {
+    $url="$base/responses";$H[]="Authorization: Bearer $key";
+    $body=['model'=>$model,'input'=>$msgs,'stream'=>true,'store'=>false,'max_output_tokens'=>$maxTok,'reasoning'=>['effort'=>$think?'medium':'low']];
+    if($system!=='')$body['instructions']=$system;
+    $on=function(array $j)use(&$text,&$reason,&$tin,&$tout,$think,$emit){
+      $event=$j['type']??'';$delta=$j['delta']??null;
+      if($event==='response.output_text.delta'&&is_string($delta)){$text.=$delta;$emit(['t'=>'d','x'=>$delta]);}
+      if($think&&$event==='response.reasoning_summary_text.delta'&&is_string($delta)){$reason.=$delta;$emit(['t'=>'r','x'=>$delta]);}
+      $usage=$j['response']['usage']??null;
+      if(is_array($usage)){$tin=(int)($usage['input_tokens']??0);$tout=(int)($usage['output_tokens']??0);}
+      if($event==='error'||$event==='response.failed')throw new RuntimeException((string)($j['message']??$j['response']['error']['message']??'xAI could not complete the response.'));
+    };
+  } elseif ($proto === 'oa') {
+    if($prov==='cloudflare'){
+      $credentials=cloudflare_credentials($key);
+      if(!$credentials)throw new RuntimeException('Add your Cloudflare Account ID and Workers AI token in Connections.');
+      [$account,$key]=$credentials;
+      $base.='/'.$account.'/ai/v1';
     }
-    $on = function (array $j) use (&$text, &$reason, &$tin, &$tout, $emit, $think) {
-      $d = $j['choices'][0]['delta'] ?? [];
-      $r = $d['reasoning_content'] ?? ($d['reasoning'] ?? '');
-      if ($think && is_string($r) && $r !== '') { $reason .= $r; $emit(['t' => 'r', 'x' => $r]); }
-      $c = $d['content'] ?? '';
-      if (is_string($c) && $c !== '') { $text .= $c; $emit(['t' => 'd', 'x' => $c]); }
-      if (!empty($j['usage'])) { $tin = (int)($j['usage']['prompt_tokens'] ?? 0); $tout = (int)($j['usage']['completion_tokens'] ?? 0); }
+    $url = "$base/chat/completions"; $H[] = "Authorization: Bearer $key";
+    $body = ['model'=>$model,'stream'=>true,'messages'=>$system!==''?array_merge([['role'=>'system','content'=>$system]],$msgs):$msgs];
+    // Some OpenAI-compatible gateways provide usage without accepting stream_options.
+    if(in_array($prov,['openai','openrouter','cerebras'],true))$body['stream_options']=['include_usage'=>true];
+    $reasoning=is_thinking_model($prov,$model);
+    $tokenKey=($prov==='openai'&&$reasoning)||in_array($prov,['groq','cerebras'],true)?'max_completion_tokens':'max_tokens';
+    $body[$tokenKey]=$maxTok;
+    if($prov==='openai'&&$reasoning){
+      $offEffort=preg_match('~^gpt-6\.[12]~i',$model)?'low':
+        (preg_match('~^(gpt-6-luna|gpt-5\.[1-9])~i',$model)?'none':(str_starts_with($model,'gpt-5')?'minimal':'low'));
+      $body['reasoning_effort']=$think?'medium':$offEffort;
+    }elseif($prov==='openrouter'&&($think||$reasoning)){
+      $body['reasoning']=$think?['effort'=>'medium']:['enabled'=>false,'exclude'=>true];
+    }elseif($prov==='deepseek'&&($reasoning||$model==='deepseek-chat')){
+      $body['thinking']=['type'=>$think?'enabled':'disabled'];
+    }elseif($prov==='moonshot'&&preg_match('/^kimi-k3/i',$model)){
+      $body['reasoning_effort']=$think?'high':'low';
+    }elseif($prov==='moonshot'&&preg_match('/^kimi-k2\.[56]/i',$model)){
+      $body['thinking']=['type'=>$think?'enabled':'disabled'];
+    }elseif($prov==='xai'&&(str_starts_with($model,'grok-3-mini')||preg_match('/^grok-4\.[34](?:-|$)/',$model))){
+      $body['reasoning_effort']=$think?'high':(str_starts_with($model,'grok-3-mini')?'low':'none');
+    }elseif(in_array($prov,['groq','cerebras'],true)&&$reasoning){
+      $body['reasoning_effort']=$think?'medium':(str_contains($model,'gpt-oss')?'low':'none');
+      if($prov==='groq')$body['include_reasoning']=$think;
+      else $body['reasoning_format']=$think?'parsed':'hidden';
+    }elseif($prov==='cloudflare'&&$reasoning){
+      $body['reasoning_effort']=$think?'medium':'low';
+    }elseif($prov==='mistral'&&$reasoning){
+      $body['reasoning_effort']=str_starts_with($model,'mistral-large')?($think?'medium':'low'):($think?'high':'none');
+    }elseif($prov==='together'&&strtolower($model)==='openai/gpt-oss-120b'){
+      $body['reasoning_effort']=$think?'medium':'low';
+    }elseif($prov==='together'&&$reasoning){
+      $body['reasoning']=['enabled'=>$think];
+    }
+    $on = function(array $j)use(&$text,&$reason,&$tin,&$tout,$emit,$think){
+      if(isset($j['error']))throw new RuntimeException(is_array($j['error'])?(string)($j['error']['message']??'Provider error'):(string)$j['error']);
+      $d=$j['choices'][0]['delta']??$j['choices'][0]['message']??[];
+      $write=function($value,bool $thinkingChunk)use(&$text,&$reason,$emit,$think){
+        if(!is_string($value)||$value==='')return;
+        if($thinkingChunk){if($think){$reason.=$value;$emit(['t'=>'r','x'=>$value]);}}
+        else {$text.=$value;$emit(['t'=>'d','x'=>$value]);}
+      };
+      $write($d['reasoning_content']??$d['reasoning']??null,true);
+      $content=$d['content']??null;
+      if(is_array($content)){
+        foreach($content as $chunk){
+          if(!is_array($chunk))continue;
+          $isThought=in_array($chunk['type']??'', ['thinking','reasoning'],true);
+          if($isThought&&is_array($chunk['thinking']??null)){
+            foreach($chunk['thinking'] as $part)if(is_array($part))$write($part['text']??null,true);
+          }else $write($chunk['text']??$chunk['thinking']??null,$isThought);
+        }
+      }else $write($content,false);
+      $usage=$j['usage']??$j['x_groq']['usage']??null;
+      if(is_array($usage)){$tin=(int)($usage['prompt_tokens']??0);$tout=(int)($usage['completion_tokens']??0);}
     };
   } elseif ($proto === 'an') {
     $url = "$base/messages"; $H[] = "x-api-key: $key"; $H[] = 'anthropic-version: 2023-06-01';
     $body = ['model' => $model, 'max_tokens' => $maxTok, 'stream' => true, 'messages' => $msgs];
     if ($system !== '') $body['system'] = $system;
-    if ($think && preg_match('/^claude-(opus|sonnet)-(4-[67]|5)/', $model)) {
-      $body['thinking'] = ['type'=>'adaptive'];
-      $body['output_config'] = ['effort'=>'high'];
+    if (preg_match('/^claude-(?:fable|opus|sonnet|haiku)-5|^claude-(?:opus|sonnet)-4-[67]/i',$model)) {
+      $alwaysOn=(bool)preg_match('/^claude-(?:fable|opus)-5/i',$model);
+      if($think||$alwaysOn){
+        $body['thinking']=['type'=>'adaptive'];
+        $body['output_config']=['effort'=>$think?'medium':'low'];
+      }else $body['thinking']=['type'=>'disabled'];
     } elseif ($think && $maxTok > 1024) {
       $body['thinking'] = ['type'=>'enabled','budget_tokens'=>max(1024,min(4096,(int)($maxTok/2)))];
     }
@@ -654,12 +763,17 @@ function stream_model(string $prov, string $model, string $key, string $system, 
       elseif ($ty === 'error') throw new Exception($j['error']['message'] ?? 'Stream error');
     };
   } else {
-    $url = "$base/models/" . rawurlencode($model) . ':streamGenerateContent?alt=sse'; $H[] = "x-goog-api-key: $key";
+    $googleModel=preg_replace('~^models/~','',$model);
+    $url = "$base/models/" . rawurlencode($googleModel) . ':streamGenerateContent?alt=sse'; $H[] = "x-goog-api-key: $key";
     $body = ['contents' => array_map(fn($x) => ['role' => $x['role'] === 'assistant' ? 'model' : 'user', 'parts' => [['text' => $x['content']]]], $msgs)];
     if ($system !== '') $body['systemInstruction'] = ['parts' => [['text' => $system]]];
     $body['generationConfig'] = ['maxOutputTokens' => $maxTok];
-    if (preg_match('/^gemini-2\.5-(flash|flash-lite)/', $model)) $body['generationConfig']['thinkingConfig'] = ['thinkingBudget' => $think ? 4096 : 0, 'includeThoughts' => $think];
-    elseif ($think) $body['generationConfig']['thinkingConfig'] = ['includeThoughts' => true];
+    if(preg_match('/^gemini-[34](?:[.\-]|$)/i',$googleModel)&&!preg_match('/tts|image|live/i',$googleModel)){
+      $off=str_contains($googleModel,'3.5-flash-lite')?'MINIMAL':'LOW';
+      $body['generationConfig']['thinkingConfig']=['thinkingLevel'=>$think?'MEDIUM':$off,'includeThoughts'=>$think];
+    }elseif(preg_match('/^gemini-2\.5-flash/i',$googleModel)){
+      $body['generationConfig']['thinkingConfig']=['thinkingBudget'=>$think?4096:0,'includeThoughts'=>$think];
+    }elseif($think)$body['generationConfig']['thinkingConfig']=['includeThoughts'=>true];
     $on = function (array $j) use (&$text, &$reason, &$tin, &$tout, $emit, $think) {
       foreach (($j['candidates'][0]['content']['parts'] ?? []) as $p) {
         $t = $p['text'] ?? ''; if ($t === '') continue;
@@ -681,7 +795,7 @@ function stream_model(string $prov, string $model, string $key, string $system, 
         $js = trim(substr($line, 5)); if ($js === '') continue;
         if($js==='[DONE]'){$finished=true;return 0;}
         $j = json_decode($js, true);
-        if (is_array($j)) { try { $on($j); } catch (WidgetQuestionReady|WebsiteBuildReady $e) { $finished=true;return 0; } catch (Throwable $e) { $errb = json_encode(['error' => ['message' => $e->getMessage()]]); return 0; } if(($j['type']??null)==='message_stop'){$finished=true;return 0;} }
+        if (is_array($j)) { try { $on($j); } catch (WidgetQuestionReady|WebsiteBuildReady $e) { $finished=true;return 0; } catch (Throwable $e) { $errb = json_encode(['error' => ['message' => $e->getMessage()]]); return 0; } if(in_array($j['type']??null,['message_stop','response.completed','response.incomplete'],true)){$finished=true;return 0;} }
       }
       if (connection_aborted()) { $abort = true; return 0; }
       return strlen($data);
@@ -725,7 +839,8 @@ if (isset($_GET['a'])) {
   $a = $_GET['a'];
   $in = json_decode(file_get_contents('php://input') ?: '{}', true) ?: [];
   $uid = (int)($_SESSION['uid'] ?? 0);
-  $pub = array_map(fn($p) => ['name' => $p[0], 'color' => $p[3], 'models' => $p[4]], $P);
+  $pub=[];
+  foreach($P as $id=>$entry)$pub[$id]=['name'=>$entry[0],'color'=>$entry[3],'models'=>$entry[4]]+(PROVIDER_ACCESS[$id]??[]);
 
   if ($a === 'boot') {
     $me = $uid ? q('SELECT id,email,username FROM users WHERE id=?', [$uid])->fetch() : null;
@@ -733,7 +848,8 @@ if (isset($_GET['a'])) {
     $s = q('SELECT system_prompt,provider,model,web,deep,think,length,builtin FROM settings WHERE user_id=?', [$uid])->fetch();
     $cl = strip_builtin((string)$s['system_prompt']);
     if ($cl !== $s['system_prompt']) { q('UPDATE settings SET system_prompt=? WHERE user_id=?', [$cl, $uid]); $s['system_prompt'] = $cl; }
-    out(['csrf' => $_SESSION['csrf'], 'me' => $me, 'providers' => $pub, 'settings' => $s, 'builtin_prompt' => SYS_PROMPT,
+    out(['csrf' => $_SESSION['csrf'], 'me' => $me, 'providers' => $pub, 'settings'=>$s,'builtin_prompt'=>SYS_PROMPT,'thinking_rules'=>THINKING_PATTERNS,'legacy_models'=>LEGACY_PRESETS,'default_model'=>DEFAULT_CHAT_MODEL,
+      'thinking_modes'=>q('SELECT provider,model,mode FROM model_thinking WHERE user_id=?',[$uid])->fetchAll(),
       'keys' => q('SELECT provider FROM api_keys WHERE user_id=?', [$uid])->fetchAll(PDO::FETCH_COLUMN),
       'custom' => q('SELECT provider,model FROM custom_models WHERE user_id=? ORDER BY created', [$uid])->fetchAll(),
       'skills' => q('SELECT name,instructions FROM skills WHERE user_id=? ORDER BY name', [$uid])->fetchAll(),
@@ -751,7 +867,7 @@ if (isset($_GET['a'])) {
       if ($e = check_password($pw, $user, $email)) fail($e);
       if (q('SELECT 1 FROM users WHERE email=? OR username=?', [$email, $user])->fetch()) fail('That email or username is already registered.');
       q('INSERT INTO users(email,username,pass,created) VALUES(?,?,?,?)', [$email, $user, password_hash($pw, PASSWORD_DEFAULT), time()]);
-      $id = (int)$GLOBALS['db']->lastInsertId(); q('INSERT INTO settings(user_id) VALUES(?)', [$id]);
+      $id = (int)$GLOBALS['db']->lastInsertId(); q('INSERT INTO settings(user_id,model) VALUES(?,?)', [$id,DEFAULT_CHAT_MODEL]);
     } else {
       $who = trim((string)($in['login'] ?? ''));
       $r = q('SELECT id,pass FROM users WHERE email=? OR username=?', [$who, $who])->fetch();
@@ -765,9 +881,15 @@ if (isset($_GET['a'])) {
 
   switch ($a) {
     case 'logout': session_destroy(); out(['ok' => 1]);
+    case 'thinking_mode':
+      $prov=(string)($in['provider']??'');$model=(string)($in['model']??'');$mode=$in['mode']??'';
+      if(!isset($P[$prov])||!model_id_valid($model)||!in_array($mode,['auto','on','off'],true))fail('Invalid thinking setting.');
+      if($mode==='auto')q('DELETE FROM model_thinking WHERE user_id=? AND provider=? AND model=?',[$uid,$prov,$model]);
+      else q('INSERT INTO model_thinking(user_id,provider,model,mode) VALUES(?,?,?,?) ON CONFLICT(user_id,provider,model) DO UPDATE SET mode=excluded.mode',[$uid,$prov,$model,$mode]);
+      out(['ok'=>1]);
     case 'settings':
       $prov = (string)($in['provider'] ?? 'openai'); $model = trim((string)($in['model'] ?? ''));
-      if (!isset($P[$prov]) || !preg_match('~^[\w.\-:/]{1,100}$~', $model)) fail('Invalid model.');
+      if (!isset($P[$prov]) || !model_id_valid($model)) fail('Invalid model.');
       $len = $in['length'] ?? 'auto';
       if (!in_array($len, ['auto', 'short', 'long', 'xlong'], true)) $len = 'auto';
       q('UPDATE settings SET system_prompt=?,provider=?,model=?,web=?,deep=?,think=?,length=?,builtin=? WHERE user_id=?', [strip_builtin(mb_substr((string)($in['system_prompt'] ?? ''), 0, 8000)), $prov, $model, empty($in['web']) ? 0 : 1, empty($in['deep']) ? 0 : 1, empty($in['think']) ? 0 : 1, $len, (isset($in['builtin']) && empty($in['builtin'])) ? 0 : 1, $uid]);
@@ -789,6 +911,7 @@ if (isset($_GET['a'])) {
       if (!isset($P[$prov])) fail('Unknown provider.');
       if ($a === 'key' && !is_string($in['key'] ?? null)) fail('Enter an API key.');
       $keyValue = trim((string)($in['key'] ?? ''));
+      if($a==='key'&&$keyValue!==''&&$prov==='cloudflare'&&!cloudflare_credentials($keyValue))fail('Enter a Cloudflare Account ID and Workers AI token.');
       try {
         if ($a === 'key_delete' || $keyValue === '') {
           q('DELETE FROM api_keys WHERE user_id=? AND provider=?', [$uid, $prov]);
@@ -801,7 +924,7 @@ if (isset($_GET['a'])) {
       }
     case 'cmadd':
       $prov = (string)($in['provider'] ?? ''); $model = trim((string)($in['model'] ?? ''));
-      if (!isset($P[$prov]) || !preg_match('~^[\w.\-:/]{1,100}$~', $model)) fail('Enter a valid model ID.');
+      if (!isset($P[$prov]) || !model_id_valid($model)) fail('Enter a valid model ID.');
       q('INSERT OR IGNORE INTO custom_models(user_id,provider,model,created) VALUES(?,?,?,?)', [$uid, $prov, $model, time()]); out(['ok' => 1]);
     case 'cmdel':
       q('DELETE FROM custom_models WHERE user_id=? AND provider=? AND model=?', [$uid, (string)($in['provider'] ?? ''), (string)($in['model'] ?? '')]); out(['ok' => 1]);
@@ -853,7 +976,7 @@ if (isset($_GET['a'])) {
       set_time_limit(300); ignore_user_abort(true);
       $regen = !empty($in['regen']);
       $prov = (string)($in['provider'] ?? ''); $model = trim((string)($in['model'] ?? '')); $text = trim((string)($in['message'] ?? ''));
-      if (!isset($P[$prov]) || !preg_match('~^[\w.\-:/]{1,100}$~', $model)) fail('Choose a valid model.');
+      if (!isset($P[$prov]) || !model_id_valid($model)) fail('Choose a valid model.');
       if (!$regen && ($text === '' || strlen($text) > 400000)) fail('Message is empty or too long.');
       $key = trim((string)($in['key'] ?? ''));
       if ($key === '') { $r = q('SELECT enc FROM api_keys WHERE user_id=? AND provider=?', [$uid, $prov])->fetch(); $key = $r ? dec($r['enc']) : ''; }
@@ -879,7 +1002,7 @@ if (isset($_GET['a'])) {
       $builtin = array_key_exists('builtin', $in) ? !empty($in['builtin']) : (bool)q('SELECT builtin FROM settings WHERE user_id=?', [$uid])->fetchColumn();
       $sys = $builtin ? "ASTHERAL DEFAULTS\n" . SYS_PROMPT : '';
       if ($builtin) {
-        $sys .= "\n\nCURRENT APP BEHAVIOR: The original defaults above are preserved for style and general platform guidance. Use these updates when details differ: Instructions is in the chat header. Response settings controls web research, Deep Analysis, Thinking, and the context and output limits. The active context budget determines how much recent chat history is sent. Deep Analysis can run a separate preparatory pass. The Thinking switch sends provider reasoning controls where available, and some models require reasoning. Search results may also be attached for a lookup of the selected model. The current request metadata and skill instructions below reflect the actual model, time, and capabilities for this message.";
+        $sys .= "\n\nAVAILABLE PROVIDERS: " . implode(', ',array_column($P,0)) . ".\n\nCURRENT APP BEHAVIOR: The original defaults above are preserved for style and general platform guidance. Use these updates when details differ: Instructions is in the chat header. Response settings controls web research, Deep Analysis, Thinking, and the context and output limits. The active context budget determines how much recent chat history is sent. Deep Analysis can run a separate preparatory pass. The Thinking switch sends provider reasoning controls where available, and some models require reasoning. Search results may also be attached for a lookup of the selected model. The current request metadata and skill instructions below reflect the actual model, time, and capabilities for this message.";
       }
       $username = (string)q('SELECT username FROM users WHERE id=?', [$uid])->fetchColumn();
       $tz = (string)($in['timezone'] ?? 'UTC');
@@ -887,7 +1010,7 @@ if (isset($_GET['a'])) {
       catch (Throwable $e) { $now = new DateTimeImmutable('now', new DateTimeZone('UTC')); }
       $contextLimit = max(1024, min(200000, (int)($in['context_limit'] ?? 32000)));
       $outputLimit = max(256, min(32000, (int)($in['output_limit'] ?? 8192)));
-      $thinking = !empty($in['think']);
+      $thinking = array_key_exists('think',$in)?!empty($in['think']):thinking_preference($uid,$prov,$model);
       $deep = !empty($in['deep']);
       $runtime = [
         'model_id' => $model,
@@ -1398,6 +1521,12 @@ main { overflow:hidden; }
 .build-panel pre{white-space:pre-wrap;overflow-wrap:anywhere;overflow:auto;max-height:180px;margin:4px 0;padding:7px;background:var(--surface);border:1px solid var(--line);border-radius:4px}
 .build-panel pre code{padding:0;background:transparent}
 @media(prefers-reduced-motion:reduce){.build-details>summary svg,.build-file>summary svg{transition:none}}
+
+.provider-mark{display:grid;place-items:center;width:21px;height:21px;font-size:10px;font-weight:750;letter-spacing:-.035em;border:1px solid var(--line);border-radius:5px;color:var(--accent);background:var(--bg2)}
+.model-free{color:var(--ok);white-space:nowrap}
+.model-notice{padding:8px;background:var(--bg2);border-left:2px solid var(--line);font-size:12px;color:var(--mut);margin:4px 0 7px;overflow-wrap:anywhere}
+.provider-doc{margin-left:4px;white-space:nowrap}
+#thinking-auto{margin:0 8px 5px;padding:3px 7px;min-height:28px;font-size:12px;color:var(--acc)}
 </style>
 </head>
 <body>
@@ -1461,7 +1590,8 @@ main { overflow:hidden; }
   <div class="db response-body">
           <label class="tg"><span>Web research<small>Search and read live pages</small></span><input type="checkbox" class="sw" id="o-web"></label>
           <label class="tg"><span>Deep analysis<small>Separate evidence and analysis pass</small></span><input type="checkbox" class="sw" id="o-deep"></label>
-          <label class="tg"><span>Thinking<small>Controls provider reasoning when available</small></span><input type="checkbox" class="sw" id="o-think"></label>
+          <label class="tg"><span>Thinking<small id="thinking-status">Automatically enabled for reasoning models</small></span><input type="checkbox" class="sw" id="o-think"></label>
+          <button id="thinking-auto" type="button" class="ghost hide">Use automatic Thinking</button>
           <div class="tg"><span>Response length<small>Auto adapts to each request</small></span><select id="o-len" aria-label="Response length"><option value="auto">Auto</option><option value="short">Short</option><option value="long">Long</option><option value="xlong">Extra long</option></select></div>
           <div class="limits"><label>Context budget (approx. tokens)<input type="number" id="o-context" min="1024" max="200000" step="1024" value="32000"></label><label>Max output tokens<input type="number" id="o-output" min="256" max="32000" step="256" value="8192"></label></div>
   </div>
@@ -2904,7 +3034,8 @@ const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'
 let CSRF='',S={},chat=null,msgs=[],files=[],busy=false,mode='login';
 async function api(a,d){const r=await fetch('?a='+a,{method:a==='boot'?'GET':'POST',headers:{'Content-Type':'application/json','X-CSRF':CSRF},body:a==='boot'?undefined:JSON.stringify(d||{})});let j={};try{j=await r.json()}catch{}if(!r.ok)throw new Error(j.error||'Request failed');return j}
 const IC={"openai": "<svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"currentColor\" fill-rule=\"evenodd\"><path d=\"M9.205 8.658v-2.26c0-.19.072-.333.238-.428l4.543-2.616c.619-.357 1.356-.523 2.117-.523 2.854 0 4.662 2.212 4.662 4.566 0 .167 0 .357-.024.547l-4.71-2.759a.797.797 0 00-.856 0l-5.97 3.473zm10.609 8.8V12.06c0-.333-.143-.57-.429-.737l-5.97-3.473 1.95-1.118a.433.433 0 01.476 0l4.543 2.617c1.309.76 2.189 2.378 2.189 3.948 0 1.808-1.07 3.473-2.76 4.163zM7.802 12.703l-1.95-1.142c-.167-.095-.239-.238-.239-.428V5.899c0-2.545 1.95-4.472 4.591-4.472 1 0 1.927.333 2.712.928L8.23 5.067c-.285.166-.428.404-.428.737v6.898zM12 15.128l-2.795-1.57v-3.33L12 8.658l2.795 1.57v3.33L12 15.128zm1.796 7.23c-1 0-1.927-.332-2.712-.927l4.686-2.712c.285-.166.428-.404.428-.737v-6.898l1.974 1.142c.167.095.238.238.238.428v5.233c0 2.545-1.974 4.472-4.614 4.472zm-5.637-5.303l-4.544-2.617c-1.308-.761-2.188-2.378-2.188-3.948A4.482 4.482 0 014.21 6.327v5.423c0 .333.143.571.428.738l5.947 3.449-1.95 1.118a.432.432 0 01-.476 0zm-.262 3.9c-2.688 0-4.662-2.021-4.662-4.519 0-.19.024-.38.047-.57l4.686 2.71c.286.167.571.167.856 0l5.97-3.448v2.26c0 .19-.07.333-.237.428l-4.543 2.616c-.619.357-1.356.523-2.117.523zm5.899 2.83a5.947 5.947 0 005.827-4.756C22.287 18.339 24 15.84 24 13.296c0-1.665-.713-3.282-1.998-4.448.119-.5.19-.999.19-1.498 0-3.401-2.759-5.947-5.946-5.947-.642 0-1.26.095-1.88.31A5.962 5.962 0 0010.205 0a5.947 5.947 0 00-5.827 4.757C1.713 5.447 0 7.945 0 10.49c0 1.666.713 3.283 1.998 4.448-.119.5-.19 1-.19 1.499 0 3.401 2.759 5.946 5.946 5.946.642 0 1.26-.095 1.88-.309a5.96 5.96 0 004.162 1.713z\"></path></svg>", "anthropic": "<svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"currentColor\" fill-rule=\"evenodd\"><path d=\"M4.709 15.955l4.72-2.647.08-.23-.08-.128H9.2l-.79-.048-2.698-.073-2.339-.097-2.266-.122-.571-.121L0 11.784l.055-.352.48-.321.686.06 1.52.103 2.278.158 1.652.097 2.449.255h.389l.055-.157-.134-.098-.103-.097-2.358-1.596-2.552-1.688-1.336-.972-.724-.491-.364-.462-.158-1.008.656-.722.881.06.225.061.893.686 1.908 1.476 2.491 1.833.365.304.145-.103.019-.073-.164-.274-1.355-2.446-1.446-2.49-.644-1.032-.17-.619a2.97 2.97 0 01-.104-.729L6.283.134 6.696 0l.996.134.42.364.62 1.414 1.002 2.229 1.555 3.03.456.898.243.832.091.255h.158V9.01l.128-1.706.237-2.095.23-2.695.08-.76.376-.91.747-.492.584.28.48.685-.067.444-.286 1.851-.559 2.903-.364 1.942h.212l.243-.242.985-1.306 1.652-2.064.73-.82.85-.904.547-.431h1.033l.76 1.129-.34 1.166-1.064 1.347-.881 1.142-1.264 1.7-.79 1.36.073.11.188-.02 2.856-.606 1.543-.28 1.841-.315.833.388.091.395-.328.807-1.969.486-2.309.462-3.439.813-.042.03.049.061 1.549.146.662.036h1.622l3.02.225.79.522.474.638-.079.485-1.215.62-1.64-.389-3.829-.91-1.312-.329h-.182v.11l1.093 1.068 2.006 1.81 2.509 2.33.127.578-.322.455-.34-.049-2.205-1.657-.851-.747-1.926-1.62h-.128v.17l.444.649 2.345 3.521.122 1.08-.17.353-.608.213-.668-.122-1.374-1.925-1.415-2.167-1.143-1.943-.14.08-.674 7.254-.316.37-.729.28-.607-.461-.322-.747.322-1.476.389-1.924.315-1.53.286-1.9.17-.632-.012-.042-.14.018-1.434 1.967-2.18 2.945-1.726 1.845-.414.164-.717-.37.067-.662.401-.589 2.388-3.036 1.44-1.882.93-1.086-.006-.158h-.055L4.132 18.56l-1.13.146-.487-.456.061-.746.231-.243 1.908-1.312-.006.006z\"></path></svg>", "google": "<svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"currentColor\" fill-rule=\"evenodd\"><path d=\"M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z\"></path></svg>", "moonshot": "<svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"currentColor\" fill-rule=\"evenodd\"><path d=\"M21.846 0a1.923 1.923 0 110 3.846H20.15a.226.226 0 01-.227-.226V1.923C19.923.861 20.784 0 21.846 0z\"></path><path d=\"M11.065 11.199l7.257-7.2c.137-.136.06-.41-.116-.41H14.3a.164.164 0 00-.117.051l-7.82 7.756c-.122.12-.302.013-.302-.179V3.82c0-.127-.083-.23-.185-.23H3.186c-.103 0-.186.103-.186.23V19.77c0 .128.083.23.186.23h2.69c.103 0 .186-.102.186-.23v-3.25c0-.069.025-.135.069-.178l2.424-2.406a.158.158 0 01.205-.023l6.484 4.772a7.677 7.677 0 003.453 1.283c.108.012.2-.095.2-.23v-3.06c0-.117-.07-.212-.164-.227a5.028 5.028 0 01-2.027-.807l-5.613-4.064c-.117-.078-.132-.279-.028-.381z\"></path></svg>", "deepseek": "<svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"currentColor\" fill-rule=\"evenodd\"><path d=\"M23.748 4.482c-.254-.124-.364.113-.512.234-.051.039-.094.09-.137.136-.372.397-.806.657-1.373.626-.829-.046-1.537.214-2.163.848-.133-.782-.575-1.248-1.247-1.548-.352-.156-.708-.311-.955-.65-.172-.241-.219-.51-.305-.774-.055-.16-.11-.323-.293-.35-.2-.031-.278.136-.356.276-.313.572-.434 1.202-.422 1.84.027 1.436.633 2.58 1.838 3.393.137.093.172.187.129.323-.082.28-.18.552-.266.833-.055.179-.137.217-.329.14a5.526 5.526 0 01-1.736-1.18c-.857-.828-1.631-1.742-2.597-2.458a11.365 11.365 0 00-.689-.471c-.985-.957.13-1.743.388-1.836.27-.098.093-.432-.779-.428-.872.004-1.67.295-2.687.684a3.055 3.055 0 01-.465.137 9.597 9.597 0 00-2.883-.102c-1.885.21-3.39 1.102-4.497 2.623C.082 8.606-.231 10.684.152 12.85c.403 2.284 1.569 4.175 3.36 5.653 1.858 1.533 3.997 2.284 6.438 2.14 1.482-.085 3.133-.284 4.994-1.86.47.234.962.327 1.78.397.63.059 1.236-.03 1.705-.128.735-.156.684-.837.419-.961-2.155-1.004-1.682-.595-2.113-.926 1.096-1.296 2.746-2.642 3.392-7.003.05-.347.007-.565 0-.845-.004-.17.035-.237.23-.256a4.173 4.173 0 001.545-.475c1.396-.763 1.96-2.015 2.093-3.517.02-.23-.004-.467-.247-.588zM11.581 18c-2.089-1.642-3.102-2.183-3.52-2.16-.392.024-.321.471-.235.763.09.288.207.486.371.739.114.167.192.416-.113.603-.673.416-1.842-.14-1.897-.167-1.361-.802-2.5-1.86-3.301-3.307-.774-1.393-1.224-2.887-1.298-4.482-.02-.386.093-.522.477-.592a4.696 4.696 0 011.529-.039c2.132.312 3.946 1.265 5.468 2.774.868.86 1.525 1.887 2.202 2.891.72 1.066 1.494 2.082 2.48 2.914.348.292.625.514.891.677-.802.09-2.14.11-3.054-.614zm1-6.44a.306.306 0 01.415-.287.302.302 0 01.2.288.306.306 0 01-.31.307.303.303 0 01-.304-.308zm3.11 1.596c-.2.081-.399.151-.59.16a1.245 1.245 0 01-.798-.254c-.274-.23-.47-.358-.552-.758a1.73 1.73 0 01.016-.588c.07-.327-.008-.537-.239-.727-.187-.156-.426-.199-.688-.199a.559.559 0 01-.254-.078c-.11-.054-.2-.19-.114-.358.028-.054.16-.186.192-.21.356-.202.767-.136 1.146.016.352.144.618.408 1.001.782.391.451.462.576.685.914.176.265.336.537.445.848.067.195-.019.354-.25.452z\"></path></svg>", "xai": "<svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"currentColor\" fill-rule=\"evenodd\"><path d=\"M9.27 15.29l7.978-5.897c.391-.29.95-.177 1.137.272.98 2.369.542 5.215-1.41 7.169-1.951 1.954-4.667 2.382-7.149 1.406l-2.711 1.257c3.889 2.661 8.611 2.003 11.562-.953 2.341-2.344 3.066-5.539 2.388-8.42l.006.007c-.983-4.232.242-5.924 2.75-9.383.06-.082.12-.164.179-.248l-3.301 3.305v-.01L9.267 15.292M7.623 16.723c-2.792-2.67-2.31-6.801.071-9.184 1.761-1.763 4.647-2.483 7.166-1.425l2.705-1.25a7.808 7.808 0 00-1.829-1A8.975 8.975 0 005.984 5.83c-2.533 2.536-3.33 6.436-1.962 9.764 1.022 2.487-.653 4.246-2.34 6.022-.599.63-1.199 1.259-1.682 1.925l7.62-6.815\"></path></svg>", "openrouter": "<svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"currentColor\" fill-rule=\"evenodd\"><path d=\"M18.654 3.87a5.087 5.087 0 110 10.174L23.7 19.09c.64.641.187 1.737-.72 1.737H8.48a8.479 8.479 0 010-16.958h10.175zM8.479 7.26a5.087 5.087 0 100 10.176 5.087 5.087 0 000-10.175z\"></path></svg>"};
-const ico=p=>`<span class="ico" aria-hidden="true">${IC[p]||""}</span>`;
+const providerMarks={groq:'G',cloudflare:'CF',cerebras:'C',mistral:'M',together:'T'};
+const ico=p=>`<span class="ico" aria-hidden="true">${IC[p]||(providerMarks[p]?`<span class="provider-mark provider-${p}">${providerMarks[p]}</span>`:'')}</span>`;
 const sk=p=>sessionStorage.getItem('ak_'+p)||'';
 const hasKey=p=>S.keys.includes(p)||!!sk(p);
 
@@ -2913,10 +3044,11 @@ async function boot(){
   $('#auth').classList.toggle('hide',!!j.me);$('#app').classList.toggle('hide',!j.me);
   if(!j.me)return;
   $('#who').textContent=j.me.username;
-  $('#o-web').checked=!!S.settings.web;$('#o-deep').checked=!!S.settings.deep;$('#o-think').checked=!!S.settings.think;$('#o-len').value=S.settings.length||'auto';$('#o-built').checked=Number(S.settings.builtin)!==0;$('#o-sys').value=S.settings.system_prompt;
-  if(!S.providers[S.settings.provider]){S.settings.provider='openai';S.settings.model='gpt-5'}
+  S.thinking_modes=Array.isArray(j.thinking_modes)?j.thinking_modes:[];
+  $('#o-web').checked=!!S.settings.web;$('#o-deep').checked=!!S.settings.deep;$('#o-len').value=S.settings.length||'auto';$('#o-built').checked=Number(S.settings.builtin)!==0;$('#o-sys').value=S.settings.system_prompt;
+  if(!S.providers[S.settings.provider]){S.settings.provider='openai';S.settings.model=S.default_model||'gpt-6-luna'}
   $('#builtin-text').textContent=S.builtin_prompt;
-  setPromptStatus('Saved');renderChats();renderModel();renderMsgs();renderModes();setSidebar(!smallNav.matches);
+  setPromptStatus('Saved');applyThinking();renderChats();renderModel();renderMsgs();renderModes();setSidebar(!smallNav.matches);
 }
 /* auth */
 function setMode(m){mode=m;$('#t-login').setAttribute('aria-selected',m==='login');$('#t-signup').setAttribute('aria-selected',m==='signup');
@@ -3221,16 +3353,55 @@ $('#b-exp').onclick=()=>{const l=msgs.filter(m=>!m.err);if(!l.length)return;cons
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([md],{type:'text/markdown'}));a.download=t.replace(/[^\w-]+/g,'_').slice(0,40)+'.md';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)};
 /* model + options */
 function renderModel(){const s=S.settings;$('#mb').innerHTML=`${ico(s.provider)} <span>${esc(s.model)}</span> <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>`;$('#mb').style.cssText='display:flex;align-items:center;gap:8px;max-width:60vw';$('#mb').querySelector('span:nth-child(2)').style.cssText='overflow:hidden;text-overflow:ellipsis;white-space:nowrap'}
-const guess=m=>{m=m.toLowerCase();if(m.includes('/'))return'openrouter';if(/^(gpt|o\d|chatgpt|codex|text-)/.test(m))return'openai';if(m.startsWith('claude'))return'anthropic';if(/^(gemini|gemma)/.test(m))return'google';if(/^(kimi|moonshot)/.test(m))return'moonshot';if(m.startsWith('deepseek'))return'deepseek';if(m.startsWith('grok'))return'xai';return''};
+const guess=m=>{
+  m=m.toLowerCase();
+  if(m.startsWith('@cf/'))return 'cloudflare';
+  if(m.includes('/'))return 'openrouter';
+  if(/^(gpt-oss-120b|qwen-3\.8-27b)$/.test(m))return 'cerebras';
+  if(/^(gpt|o\d|chatgpt|codex|text-)/.test(m))return 'openai';
+  if(m.startsWith('claude'))return 'anthropic';
+  if(/^(gemini|gemma)/.test(m))return 'google';
+  if(/^(kimi|moonshot)/.test(m))return 'moonshot';
+  if(m.startsWith('deepseek'))return 'deepseek';
+  if(m.startsWith('grok'))return 'xai';
+  if(/^(mistral|ministral|codestral)/.test(m))return 'mistral';
+  return '';
+};
+function isReasoningPreset(provider,model){
+  const pattern=S.thinking_rules?.[provider];
+  return typeof pattern==='string'&&new RegExp(pattern,'i').test(model);
+}
+function thinkingMode(provider,model){
+  return S.thinking_modes?.find(x=>x.provider===provider&&x.model===model)?.mode||'auto';
+}
+function applyThinking(){
+  const {provider,model}=S.settings;
+  const mode=thinkingMode(provider,model),reasoning=isReasoningPreset(provider,model);
+  $('#o-think').checked=mode==='on'||(mode==='auto'&&reasoning);
+  $('#thinking-status').textContent=mode==='auto'?(reasoning?'On automatically for this model':'Off automatically for this model'):(mode==='on'?'On for this model':'Off where supported by this model');
+  $('#thinking-auto').classList.toggle('hide',mode==='auto');
+}
+let thinkingSave=Promise.resolve();
+function setThinkingMode(mode){
+  const session=S,{provider,model}=S.settings;
+  S.thinking_modes=(S.thinking_modes||[]).filter(x=>x.provider!==provider||x.model!==model);
+  if(mode!=='auto')S.thinking_modes.push({provider,model,mode});
+  applyThinking();saveSettings();
+  thinkingSave=thinkingSave.then(()=>S===session?api('thinking_mode',{provider,model,mode}):undefined).catch(()=>{
+    if(S===session&&S.settings.provider===provider&&S.settings.model===model)$('#thinking-status').textContent='Applied in this tab. Could not save to your account.';
+  });
+}
+function modelFree(provider,model){return Boolean(S.providers[provider]?.free?.includes(model))}
+function modelLegacy(provider,model){return Boolean(S.legacy_models?.[provider]?.includes(model))}
 function renderMenu(query=''){
   const current=S.settings;
-  const row=(provider,model,custom)=>`<div class="orow"><button class="opt" aria-pressed="${current.provider===provider&&current.model===model}" data-p="${provider}" data-m="${esc(model)}"><span class="n">${esc(model)}</span>${custom?`<span class="pill">${esc(S.providers[provider].name)}</span>`:''}</button>${custom?`<button class="x" data-rm="${provider}" data-m="${esc(model)}" aria-label="Remove ${esc(model)}">✕</button>`:''}</div>`;
+  const row=(provider,model,custom)=>`<div class="orow"><button class="opt" aria-pressed="${current.provider===provider&&current.model===model}" data-p="${provider}" data-m="${esc(model)}"><span class="n">${esc(model)}</span>${modelFree(provider,model)?'<span class="pill model-free" title="Eligible for the provider’s free quota">Free tier</span>':''}${custom?`<span class="pill">${esc(S.providers[provider].name)}</span>`:''}</button>${custom?`<button class="x" data-rm="${provider}" data-m="${esc(model)}" aria-label="Remove ${esc(model)}">✕</button>`:''}</div>`;
   const group=(label,rows)=>`<section class="model-group"><div class="grp">${label}</div>${rows}</section>`;
-  const providers=Object.entries(S.providers).map(([provider,data])=>group(ico(provider)+esc(data.name)+(hasKey(provider)?'':' <span class="pill">No key</span>'),data.models.map(model=>row(provider,model,false)).join(''))).join('');
+  const providers=Object.entries(S.providers).map(([provider,data])=>group(ico(provider)+esc(data.name)+(data.trial?' <span class="pill">Trial credit</span>':'')+(hasKey(provider)?'':' <span class="pill">No key</span>'),data.models.map(model=>row(provider,model,false)).join(''))).join('');
   const custom=S.custom.length?group('Custom models',S.custom.map(({provider,model})=>row(provider,model,true)).join('')):'';
   $('#model-body').innerHTML=`<div class="search-line"><svg aria-hidden="true" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8.5" cy="8.5" r="4.75"/><path d="m12 12 4 4"/></svg><input id="model-search" type="search" aria-label="Search models or providers" placeholder="Search models or providers" autocomplete="off"></div>
-    <p id="model-results" class="meta" role="status"></p>${providers}${custom}
-    <details class="model-custom"><summary>Add a custom model</summary><div class="model-custom-fields"><select id="cp" aria-label="Provider">${Object.entries(S.providers).map(([p,v])=>`<option value="${p}">${esc(v.name)}</option>`).join('')}</select><input type="text" id="cm" aria-label="Model ID" placeholder="Model ID" autocomplete="off" spellcheck="false"><button id="cu">Add</button></div></details>`;
+    <p id="model-results" class="meta" role="status"></p>${modelLegacy(current.provider,current.model)?`<p class="model-notice">Your selected preset, <strong>${esc(current.model)}</strong>, is from an older catalog. Pick a current model below if needed. No model was switched automatically.</p>`:''}${providers}${custom}
+    <details class="model-custom"><summary>Add a custom model</summary><div class="model-custom-fields"><select id="cp" aria-label="Provider">${Object.entries(S.providers).map(([p,v])=>`<option value="${p}" ${p===current.provider?'selected':''}>${esc(v.name)}</option>`).join('')}</select><input type="text" id="cm" aria-label="Model ID" placeholder="Model ID" autocomplete="off" spellcheck="false"><button id="cu">Add</button></div></details>`;
   $('#model-search').value=query;
   filterModelList();
 }
@@ -3241,7 +3412,7 @@ function filterModelList(){
     let groupCount=0;
     for(const row of group.querySelectorAll('.orow')){
       const option=row.querySelector('.opt');
-      const candidate=option.dataset.m+' '+S.providers[option.dataset.p].name;
+      const candidate=option.dataset.m+' '+S.providers[option.dataset.p].name+(modelFree(option.dataset.p,option.dataset.m)?' free tier':'');
       row.hidden=!candidate.toLowerCase().includes(query);
       if(!row.hidden)groupCount++;
     }
@@ -3249,15 +3420,24 @@ function filterModelList(){
   }
   $('#model-results').textContent=query?(count?count+' matching '+(count===1?'model':'models'):'No matching models. You can add a custom model below.'):'';
 }
-function pick(p,m){if(!/^[\w.\-:\/]{1,100}$/.test(m))return;S.settings.provider=p;S.settings.model=m;renderModel();saveSettings();$('#mm').close()}
-async function addCustom(){const m=$('#cm').value.trim(),p=$('#cp').value;if(!/^[\w.\-:\/]{1,100}$/.test(m)){$('#cm').focus();return}
+function pick(p,m){if(!S.providers[p]||!/^[\w.@:\/-]{1,100}$/.test(m))return;S.settings.provider=p;S.settings.model=m;applyThinking();renderModel();saveSettings();$('#mm').close()}
+async function addCustom(){const m=$('#cm').value.trim(),p=$('#cp').value;if(!/^[\w.@:\/-]{1,100}$/.test(m)){$('#cm').focus();return}
   if(!S.providers[p].models.includes(m)&&!S.custom.some(c=>c.provider===p&&c.model===m)){try{await api('cmadd',{provider:p,model:m});S.custom.push({provider:p,model:m})}catch(x){alert(x.message);return}}
   pick(p,m)}
 $('#mm').onclick=async e=>{const rm=e.target.closest('[data-rm]');
   if(rm){e.stopPropagation();const p=rm.dataset.rm,m=rm.dataset.m;try{await api('cmdel',{provider:p,model:m})}catch{}S.custom=S.custom.filter(c=>!(c.provider===p&&c.model===m));renderMenu($('#model-search').value);$('#model-search').focus();return}
   const o=e.target.closest('.opt');if(o){pick(o.dataset.p,o.dataset.m);return}
   if(e.target.id==='cu')addCustom()};
-$('#mm').oninput=e=>{if(e.target.id==='model-search')filterModelList();if(e.target.id==='cm'){const g=guess(e.target.value.trim());if(g)$('#cp').value=g}};
+$('#mm').oninput=e=>{
+  if(e.target.id==='model-search')filterModelList();
+  if(e.target.id==='cp')e.target.dataset.chosen='1';
+  if(e.target.id==='cm'&&!$('#cp').dataset.chosen){
+    const model=e.target.value.trim(),active=S.settings.provider;
+    if(S.providers[active]?.models.includes(model))return;
+    const g=guess(model);
+    if(g&&S.providers[g])$('#cp').value=g;
+  }
+};
 $('#mm').onkeydown=e=>{if(e.key==='Enter'&&e.target.id==='cm'){e.preventDefault();addCustom()}};
 const modelDialog=$('#mm'),promptDialog=$('#prompt-dlg'),responseDialog=$('#response-dlg');
 $('#mb').onclick=()=>{
@@ -3332,7 +3512,9 @@ function saveSettings(){
   pendingSettings={snapshot:{...S.settings},id:++revision,token:CSRF};
   timer=setTimeout(flushSettings,220);
 }
-['#o-web','#o-deep','#o-think','#o-len','#o-built','#o-sys'].forEach(sel=>$(sel).addEventListener('input',saveSettings));
+['#o-web','#o-deep','#o-len','#o-built','#o-sys'].forEach(sel=>$(sel).addEventListener('input',saveSettings));
+$('#o-think').addEventListener('input',()=>setThinkingMode($('#o-think').checked?'on':'off'));
+$('#thinking-auto').onclick=()=>setThinkingMode('auto');
 
 function widgetKey(m,n){return 'astheral-widget:'+S.me.id+':'+chat+':'+hashCode(m.content)+':'+n}
 function hashCode(s){let h=0;for(let i=0;i<s.length;i++)h=(Math.imul(31,h)+s.charCodeAt(i))|0;return h}
@@ -3517,13 +3699,14 @@ async function send(regen){if(busy)return;const command=ta.value.trim();const ed
 /* dialogs */
 const dlg=$('#dlg');$('#dx').onclick=()=>dlg.close();dlg.addEventListener('click',e=>{if(e.target===dlg)dlg.close()});
 function connectionRow(provider){
-  const name=S.providers[provider].name;
+  const info=S.providers[provider],name=info.name;
   const saved=S.keys.includes(provider),connected=hasKey(provider);
   const status=saved?'Saved on server':connected?'This tab only':'Not connected';
   return `<form class="row" data-provider="${provider}">
-    ${ico(provider)}<div><strong>${esc(name)}</strong> <span class="pill ${connected?'on':''}">${status}</span></div>
+    ${ico(provider)}<div><strong>${esc(name)}</strong> <span class="pill ${connected?'on':''}">${status}</span> ${info.docs?`<a class="meta provider-doc" href="${esc(info.docs)}" target="_blank" rel="noopener">Models &amp; access</a>`:''}</div>
     <div class="ctl">
-      <input type="password" id="k-${provider}" name="apiKey" autocomplete="off" placeholder="API key" aria-label="${esc(name)} API key">
+      ${info.account?`<input type="text" name="accountId" autocomplete="off" spellcheck="false" maxlength="32" placeholder="Cloudflare Account ID" aria-label="Cloudflare Account ID">`:''}
+      <input type="password" id="k-${provider}" name="apiKey" autocomplete="off" placeholder="${info.account?'Workers AI token':'API key'}" aria-label="${esc(name)} API key">
       <label><input type="checkbox" name="encrypted" ${saved?'checked':''}> Save encrypted</label>
       <button type="submit">Save</button>
       ${connected?`<button type="button" data-remove-key aria-label="Remove ${esc(name)} key">Remove key</button>`:''}
@@ -3551,10 +3734,17 @@ function openConn(focus){
 async function updateConnection(form,remove){
   if(!form||form.dataset.pending)return;
   const provider=form.dataset.provider,currentSession=S;
-  const key=form.elements.apiKey.value.trim(),keepOnServer=form.elements.encrypted.checked;
+  let key=form.elements.apiKey.value.trim();
+  const keepOnServer=form.elements.encrypted.checked;
   const status=form.closest('#connections').querySelector('#connection-status');
   const name=S.providers[provider].name;
   if(!remove&&!key){status.textContent='Enter an API key to save it.';form.elements.apiKey.focus();return}
+  if(!remove&&form.elements.accountId){
+    const account=form.elements.accountId.value.trim().toLowerCase();
+    if(!/^[0-9a-f]{32}$/.test(account)){status.textContent='Enter the 32-character Cloudflare Account ID.';form.elements.accountId.focus();return}
+    if(!/^[A-Za-z0-9._~-]{10,255}$/.test(key)){status.textContent='Enter a valid Workers AI token.';form.elements.apiKey.focus();return}
+    key=account+'|'+key;
+  }
   form.dataset.pending='1';
   const buttons=Array.from(form.querySelectorAll('button'));
   buttons.forEach(button=>button.disabled=true);
