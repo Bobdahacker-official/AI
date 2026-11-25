@@ -317,7 +317,8 @@ if (isset($_GET['a'])) {
     case 'settings':
       $prov = (string)($in['provider'] ?? 'openai'); $model = trim((string)($in['model'] ?? ''));
       if (!isset($P[$prov]) || !preg_match('~^[\w.\-:/]{1,100}$~', $model)) fail('Invalid model.');
-      $len = in_array($in['length'] ?? 'auto', ['auto', 'short', 'long', 'xlong'], true) ? $in['length'] : 'auto';
+      $len = $in['length'] ?? 'auto';
+      if (!in_array($len, ['auto', 'short', 'long', 'xlong'], true)) $len = 'auto';
       q('UPDATE settings SET system_prompt=?,provider=?,model=?,web=?,deep=?,think=?,length=?,builtin=? WHERE user_id=?', [strip_builtin(mb_substr((string)($in['system_prompt'] ?? ''), 0, 8000)), $prov, $model, empty($in['web']) ? 0 : 1, empty($in['deep']) ? 0 : 1, empty($in['think']) ? 0 : 1, $len, (isset($in['builtin']) && empty($in['builtin'])) ? 0 : 1, $uid]);
       out(['ok' => 1]);
     case 'skill_save':
