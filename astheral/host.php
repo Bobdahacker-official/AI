@@ -335,6 +335,14 @@ dialog{width:min(430px,calc(100vw - 24px));padding:14px}.dialog-heading{display:
 @media(max-width:760px){.host-layout{grid-template-columns:1fr;gap:12px}.site-rail .sites{grid-template-columns:repeat(2,minmax(0,1fr));max-height:120px}.site-rail .sites:has(.rail-empty){grid-template-columns:1fr}}
 @media(max-width:500px){.work{grid-template-columns:1fr}.project-files{border-right:0;border-bottom:1px solid var(--line)}.project-files .files{grid-template-columns:repeat(2,minmax(0,1fr));max-height:100px}.file-upload>div{display:flex;flex-wrap:wrap}.project-heading{padding:10px}.project-heading h1{margin:2px 0}.preview-panel iframe{height:49dvh}}
 
+
+.welcome-actions{display:flex;gap:8px;flex-wrap:wrap}.welcome #draft-note{margin:10px 0 0}
+.source-actions{display:flex;align-items:center;gap:5px;flex:none}.source-actions button{font-size:11px;padding:5px 7px;white-space:nowrap}
+section.auth{width:min(100%,420px);max-width:100%;min-width:0;margin:clamp(8px,4vh,30px) auto;padding:clamp(14px,5vw,26px)}
+.auth form,.auth label,.auth input{min-width:0;max-width:100%}.auth input{width:100%}
+.auth .toolbar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:14px 0}
+.auth .toolbar button{min-width:0;white-space:normal}
+@media(max-width:370px){body>header{padding:8px 12px}body>header nav{gap:5px}body>header nav button{padding:5px 7px}main{padding-inline:10px}}
 </style>
 </head>
 <body>
@@ -354,7 +362,7 @@ dialog{width:min(430px,calc(100vw - 24px));padding:14px}.dialog-heading{display:
     <div id="welcome" class="welcome">
       <h1>Website workspace</h1>
       <p class="note">Open one of your sites, or start a new project.</p>
-      <button id="welcome-new" class="primary" type="button">New website</button>
+      <div class="welcome-actions"><button id="welcome-new" class="primary" type="button">New website</button><button id="resume-draft" type="button" hidden>Resume draft</button></div><p id="draft-note" class="note" hidden></p>
     </div>
     <section id="project" class="project" hidden>
       <div class="project-heading">
@@ -383,7 +391,7 @@ dialog{width:min(430px,calc(100vw - 24px));padding:14px}.dialog-heading{display:
             <input id="upload-input" type="file" multiple hidden><input id="folder-input" type="file" multiple webkitdirectory hidden>
           </aside>
           <div class="source-pane">
-            <div class="source-heading"><label id="edit-label" for="code">Source</label><button id="remove" type="button">Remove file</button></div>
+            <div class="source-heading"><label id="edit-label" for="code">Source</label><div class="source-actions"><button id="export-project" type="button">Export ZIP</button><button id="remove" type="button">Remove file</button></div></div>
             <textarea id="code" spellcheck="false" autocomplete="off" autocapitalize="none"></textarea>
             <p id="binary" class="note" hidden>Binary file. Replace it by uploading it again.</p>
           </div>
@@ -423,6 +431,7 @@ dialog{width:min(430px,calc(100vw - 24px));padding:14px}.dialog-heading{display:
 const $=s=>document.querySelector(s);
 const csrf=<?=json_encode($csrf,JSON_HEX_TAG)?>;
 const signedIn=<?=json_encode((bool)$account)?>;
+const hostAccountId=<?=json_encode((int)($_SESSION['uid']??0))?>;
 const phpRunner=<?=json_encode(host_runtime_script(),JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)?>;
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function theme(mode){document.documentElement.dataset.theme=mode;$('#theme').textContent=mode==='dark'?'Cloudy light':'Dark mode';localStorage.setItem('astheral-host-theme',mode)}
@@ -444,7 +453,8 @@ if(!signedIn){
     catch(err){$('#auth-status').textContent=err.message}finally{$('#auth-submit').disabled=false}
   };
 }else{
-  let current='',active='',files=Object.create(null),dates=[],dirty=false,loadId=0;
+  let current='',active='',files=Object.create(null),dates=[],dirty=false,loadId=0,draftTimer;
+  const draftStorage='astheral-host-draft:'+hostAccountId;
   const editor=$('#code'),status=$('#status'),decoder=new TextDecoder(),encoder=new TextEncoder();
   const textFile=name=>/\.(html?|css|m?js|php|txt|md|json|webmanifest|svg)$/i.test(name);
   const type=name=>({html:'text/html',htm:'text/html',css:'text/css',js:'text/javascript',mjs:'text/javascript',svg:'image/svg+xml',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',gif:'image/gif',woff2:'font/woff2',woff:'font/woff',mp3:'audio/mpeg',mp4:'video/mp4',json:'application/json'})[name.split('.').pop().toLowerCase()]||'application/octet-stream';
@@ -457,7 +467,7 @@ if(!signedIn){
     $('#files').innerHTML=Object.keys(files).map(n=>`<button class="file" data-file="${esc(n)}" aria-pressed="${n===name}">${esc(n)}</button>`).join('');
     const text=name&&textFile(name);
     $('#edit-label').textContent=name||'Source';editor.hidden=Boolean(name&&!text);$('#binary').hidden=!(name&&!text);editor.disabled=!text;editor.value=text?decode(files[name].base64):'';
-    $('#remove').disabled=!name;
+    $('#remove').disabled=!name;$('#export-project').disabled=!Object.keys(files).length;
   }
   function showAnalytics(){
     const a=$('#analytics');
@@ -487,8 +497,46 @@ if(!signedIn){
     else $('#preview-slot').replaceChildren();
     if(next==='analytics')showAnalytics();
   }
-  function change(){dirty=true;showState()}
-  function allowSwitch(){return !dirty||confirm('Switch projects? Unpublished changes will be lost.')}
+  function readDraft(){
+    try{
+      const draft=JSON.parse(localStorage.getItem(draftStorage)||'null');
+      if(!draft||typeof draft.files!=='object'||!draft.files)return null;
+      return draft;
+    }catch{return null}
+  }
+  function refreshDraftLink(){
+    const draft=readDraft();$('#resume-draft').hidden=!draft;$('#draft-note').hidden=!draft;
+    $('#draft-note').textContent=draft?'On this device: '+(draft.title||draft.slug||'Untitled website'):'';
+  }
+  function saveDraft(){
+    if(!dirty)return;
+    try{
+      localStorage.setItem(draftStorage,JSON.stringify({current,active,files,slug:$('#slug').value,title:$('#title').value}));
+      refreshDraftLink();
+    }catch{status.textContent='This device could not save the draft. Export a ZIP to keep a copy.'}
+  }
+  function change(){
+    dirty=true;showState();
+    clearTimeout(draftTimer);draftTimer=setTimeout(saveDraft,250);
+  }
+  function forgetDraft(){
+    clearTimeout(draftTimer);localStorage.removeItem(draftStorage);refreshDraftLink();
+  }
+  function allowSwitch(){
+    if(!dirty)return true;
+    if(!confirm('Switch projects? Your recent draft is kept on this device.'))return false;
+    saveDraft();clearTimeout(draftTimer);return true;
+  }
+  $('#resume-draft').onclick=()=>{
+    const draft=readDraft();if(!draft)return;
+    loadId++;current=typeof draft.current==='string'?draft.current:'';
+    files=Object.assign(Object.create(null),draft.files);dates=[];
+    $('#slug').value=draft.slug||'';$('#title').value=draft.title||'';
+    dirty=true;
+    select(Object.hasOwn(files,draft.active)?draft.active:Object.keys(files)[0]||'');
+    showState();showProject();status.textContent='Draft restored.';
+    if(current)refreshAnalytics();
+  };
   async function list(){
     try{const {sites}=await host('sites');$('#sites').innerHTML=sites.map(s=>`<button class="site" data-site="${esc(s.slug)}" aria-pressed="${s.slug===current}"><strong>${esc(s.title)}</strong><small>/${esc(s.slug)}/</small></button>`).join('')||'<p class="note rail-empty">No published sites.</p>'}
     catch(error){status.textContent=error.message}
@@ -526,7 +574,7 @@ if(!signedIn){
   for(const button of document.querySelectorAll('[data-close]'))button.onclick=()=>$('#'+button.dataset.close).close();
   for(const button of document.querySelectorAll('[data-view]'))button.onclick=()=>setView(button.dataset.view);
   $('#refresh-analytics').onclick=refreshAnalytics;
-  window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});
+  window.addEventListener('pagehide',saveDraft);
 
   $('#add').onclick=()=>{$('#file-name').value='';$('#file-status').textContent='';$('#file-dialog').showModal()};
   $('#cancel-file').onclick=()=>$('#file-dialog').close();
@@ -549,6 +597,7 @@ if(!signedIn){
   for(const [button,input,folder] of [['upload','upload-input',false],['folder','folder-input',true]]){
     $('#'+button).onclick=()=>$('#'+input).click();$('#'+input).onchange=e=>addFiles(e.target,folder).catch(err=>status.textContent=err.message);
   }
+  for(const field of ['slug','title'])$('#'+field).oninput=()=>{change()};
   $('#deploy').onclick=()=>{
     $('#publish-status').textContent='';
     $('#publish-title').textContent=current?'Publish changes':'Publish website';
@@ -561,6 +610,7 @@ if(!signedIn){
     button.disabled=true;notice.textContent='Publishing…';
     try{
       const {site}=await host('deploy',{slug:$('#slug').value,title:$('#title').value,files,replace:!!current});
+      if(dirty||readDraft()?.current===current)forgetDraft();
       dirty=false;$('#publish-dialog').close();
       await open(site.slug);status.textContent='Published at '+site.url;
     }catch(error){notice.textContent=error.message}
@@ -568,9 +618,38 @@ if(!signedIn){
   };
   $('#delete').onclick=async()=>{
     if(!current||!confirm('Delete /'+current+'/? The public link will stop working.'))return;
-    try{await host('delete',{slug:current});current='';dirty=false;$('#project').hidden=true;$('#welcome').hidden=false;$('#preview-slot').replaceChildren();await list();status.textContent='Site deleted.'}catch(error){status.textContent=error.message}
+    try{await host('delete',{slug:current});if(readDraft()?.current===current)forgetDraft();current='';dirty=false;$('#project').hidden=true;$('#welcome').hidden=false;$('#preview-slot').replaceChildren();await list();status.textContent='Site deleted.'}catch(error){status.textContent=error.message}
   };
   $('#signout').onclick=async()=>{await call('/index.php?a=logout',{});location.reload()};
+  const crcTable=Uint32Array.from({length:256},(_,i)=>{
+    for(let bit=0;bit<8;bit++)i=i&1?(i>>>1)^0xedb88320:i>>>1;
+    return i>>>0;
+  });
+  function zipRecord(length,fields){
+    const bytes=new Uint8Array(length),view=new DataView(bytes.buffer);
+    for(const [offset,value,wide] of fields)wide?view.setUint32(offset,value,true):view.setUint16(offset,value,true);
+    return bytes;
+  }
+  function projectZip(){
+    const local=[],central=[];let offset=0,directorySize=0,count=0;
+    for(const [path,file] of Object.entries(files)){
+      const name=encoder.encode(path),data=Uint8Array.from(atob(file.base64),c=>c.charCodeAt(0));
+      let crc=0xffffffff;for(const byte of data)crc=(crc>>>8)^crcTable[(crc^byte)&255];crc=(crc^0xffffffff)>>>0;
+      const length=data.length;
+      const localHeader=zipRecord(30,[[0,0x04034b50,true],[4,20],[6,0x0800],[12,33],[14,crc,true],[18,length,true],[22,length,true],[26,name.length]]);
+      const centralHeader=zipRecord(46,[[0,0x02014b50,true],[4,20],[6,20],[8,0x0800],[14,33],[16,crc,true],[20,length,true],[24,length,true],[28,name.length],[42,offset,true]]);
+      local.push(localHeader,name,data);central.push(centralHeader,name);
+      offset+=localHeader.length+name.length+length;directorySize+=centralHeader.length+name.length;count++;
+    }
+    const end=zipRecord(22,[[0,0x06054b50,true],[8,count],[10,count],[12,directorySize,true],[16,offset,true]]);
+    return new Blob([...local,...central,end],{type:'application/zip'});
+  }
+  $('#export-project').onclick=()=>{
+    if(!Object.keys(files).length)return;
+    const url=URL.createObjectURL(projectZip()),link=document.createElement('a');
+    link.href=url;link.download=($('#slug').value.toLowerCase().replace(/[^a-z0-9-]+/g,'-')||'astheral-website')+'.zip';
+    link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  };
   function previewSource(html,entry,project=files){
     const doc=new DOMParser().parseFromString(html,'text/html');
     for(const tag of doc.querySelectorAll('base,meta[http-equiv]'))tag.remove();
@@ -626,7 +705,7 @@ if(!signedIn){
     paintPreview();
   }
   $('#preview-entry').onchange=$('#refresh-preview').onclick=paintPreview;
-  list();
+  list();refreshDraftLink();
   const requested=new URLSearchParams(location.search).get('site');
   if(requested)open(requested);
 }
