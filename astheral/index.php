@@ -384,11 +384,22 @@ if (isset($_GET['a'])) {
       q('INSERT INTO skills(user_id,name,instructions) VALUES(?,?,?) ON CONFLICT(user_id,name) DO UPDATE SET instructions=excluded.instructions', [$uid,$name,$instructions]); out(['ok'=>1]);
     case 'skill_delete':
       q('DELETE FROM skills WHERE user_id=? AND name=?', [$uid, (string)($in['name'] ?? '')]); out(['ok'=>1]);
+    case 'key_delete':
     case 'key':
-      $prov = (string)($in['provider'] ?? ''); $k = trim((string)($in['key'] ?? ''));
+      $prov = (string)($in['provider'] ?? '');
       if (!isset($P[$prov])) fail('Unknown provider.');
-      if ($k === '') { q('DELETE FROM api_keys WHERE user_id=? AND provider=?', [$uid, $prov]); out(['ok' => 1]); }
-      q('INSERT OR REPLACE INTO api_keys(user_id,provider,enc) VALUES(?,?,?)', [$uid, $prov, enc($k)]); out(['ok' => 1]);
+      if ($a === 'key' && !is_string($in['key'] ?? null)) fail('Enter an API key.');
+      $keyValue = trim((string)($in['key'] ?? ''));
+      try {
+        if ($a === 'key_delete' || $keyValue === '') {
+          q('DELETE FROM api_keys WHERE user_id=? AND provider=?', [$uid, $prov]);
+          out(['ok'=>1,'saved'=>false]);
+        }
+        q('INSERT OR REPLACE INTO api_keys(user_id,provider,enc) VALUES(?,?,?)', [$uid, $prov, enc($keyValue)]);
+        out(['ok'=>1,'saved'=>true]);
+      } catch (Throwable $e) {
+        fail('Could not update this connection. Please try again.', 500);
+      }
     case 'cmadd':
       $prov = (string)($in['provider'] ?? ''); $model = trim((string)($in['model'] ?? ''));
       if (!isset($P[$prov]) || !preg_match('~^[\w.\-:/]{1,100}$~', $model)) fail('Enter a valid model ID.');
@@ -435,6 +446,7 @@ if (isset($_GET['a'])) {
         'daily' => q("SELECT strftime('%Y-%m-%d',created,'unixepoch') d,SUM(in_t+out_t) t,COUNT(*) n FROM usage WHERE user_id=? AND created>? GROUP BY d ORDER BY d", [$uid, time() - 86400 * 14])->fetchAll(),
       ]);
     case 'send':
+      session_write_close();
       set_time_limit(300); ignore_user_abort(true);
       $regen = !empty($in['regen']);
       $prov = (string)($in['provider'] ?? ''); $model = trim((string)($in['model'] ?? '')); $text = trim((string)($in['message'] ?? ''));
@@ -2654,13 +2666,75 @@ async function send(regen){if(busy)return;const command=ta.value.trim();const ed
   renderChats();renderMsgs();ta.focus({preventScroll:true})}
 /* dialogs */
 const dlg=$('#dlg');$('#dx').onclick=()=>dlg.close();dlg.addEventListener('click',e=>{if(e.target===dlg)dlg.close()});
-function openConn(focus){$('#dt').textContent='Connections';
-  $('#dbd').innerHTML='<p class="hint" style="margin:0 0 6px">Keys are used only to call each provider. Saved keys are encrypted on the server; unsaved keys stay in this tab’s session.</p>'+Object.entries(S.providers).map(([p,v])=>`<div class="row">${ico(p)}<div><strong>${esc(v.name)}</strong> <span class="pill ${hasKey(p)?'on':''}">${S.keys.includes(p)?'Saved':sk(p)?'This session':'Not connected'}</span></div><div class="ctl"><input type="password" id="k-${p}" autocomplete="off" placeholder="API key" aria-label="${esc(v.name)} API key"><label><input type="checkbox" id="c-${p}" ${S.keys.includes(p)?'checked':''}> Save encrypted</label><button data-s="${p}">Save</button>${hasKey(p)?`<button data-x="${p}">Remove</button>`:''}</div></div>`).join('');
-  dlg.showModal();if(focus)$('#k-'+focus)?.focus()}
+function connectionRow(provider){
+  const name=S.providers[provider].name;
+  const saved=S.keys.includes(provider),connected=hasKey(provider);
+  const status=saved?'Saved on server':connected?'This tab only':'Not connected';
+  return `<form class="row" data-provider="${provider}">
+    ${ico(provider)}<div><strong>${esc(name)}</strong> <span class="pill ${connected?'on':''}">${status}</span></div>
+    <div class="ctl">
+      <input type="password" id="k-${provider}" name="apiKey" autocomplete="off" placeholder="API key" aria-label="${esc(name)} API key">
+      <label><input type="checkbox" name="encrypted" ${saved?'checked':''}> Save encrypted</label>
+      <button type="submit">Save</button>
+      ${connected?`<button type="button" data-remove-key aria-label="Remove ${esc(name)} key">Remove key</button>`:''}
+    </div>
+  </form>`;
+}
+function openConn(focus){
+  $('#dt').textContent='Connections';
+  $('#dbd').innerHTML=`<div id="connections"><p class="hint">Keys can be stored on the server or kept in this tab.</p>
+    <p class="hint" id="connection-status" role="status"></p>
+    ${Object.keys(S.providers).map(connectionRow).join('')}</div>`;
+  const panel=$('#connections');
+  panel.addEventListener('submit',e=>{
+    e.preventDefault();
+    const form=e.target.closest('[data-provider]');
+    if(form)updateConnection(form,false);
+  });
+  panel.addEventListener('click',e=>{
+    const button=e.target.closest('[data-remove-key]');
+    if(button)updateConnection(button.closest('[data-provider]'),true);
+  });
+  if(!dlg.open)dlg.showModal();
+  if(focus)$('#k-'+focus)?.focus({preventScroll:true});
+}
+async function updateConnection(form,remove){
+  if(!form||form.dataset.pending)return;
+  const provider=form.dataset.provider,currentSession=S;
+  const key=form.elements.apiKey.value.trim(),keepOnServer=form.elements.encrypted.checked;
+  const status=form.closest('#connections').querySelector('#connection-status');
+  const name=S.providers[provider].name;
+  if(!remove&&!key){status.textContent='Enter an API key to save it.';form.elements.apiKey.focus();return}
+  form.dataset.pending='1';
+  const buttons=Array.from(form.querySelectorAll('button'));
+  buttons.forEach(button=>button.disabled=true);
+  status.textContent=(remove?'Removing ':'Saving ')+name+' key…';
+  try{
+    if(remove||(!keepOnServer&&S.keys.includes(provider))){
+      const result=await api('key_delete',{provider});
+      if(result.saved!==false)throw new Error('The server did not confirm removal.');
+    }else if(keepOnServer){
+      const result=await api('key',{provider,key});
+      if(result.saved!==true)throw new Error('The server did not confirm that the key was saved.');
+    }
+    if(S!==currentSession)return;
+    S.keys=S.keys.filter(value=>value!==provider);
+    if(!remove&&keepOnServer)S.keys.push(provider);
+    if(remove||keepOnServer)sessionStorage.removeItem('ak_'+provider);
+    else sessionStorage.setItem('ak_'+provider,key);
+    if(form.isConnected){
+      form.outerHTML=connectionRow(provider);
+      status.textContent=name+(remove?' key removed.':' key saved.');
+      if(remove&&dlg.open)$('#k-'+provider)?.focus({preventScroll:true});
+    }
+  }catch(err){
+    if(form.isConnected)status.textContent=err.message;
+  }finally{
+    delete form.dataset.pending;
+    buttons.forEach(button=>button.disabled=false);
+  }
+}
 $('#b-conn').onclick=()=>openConn();
-$('#dbd').onclick=async e=>{const s=e.target.dataset.s,x=e.target.dataset.x;
-  if(s){const k=$('#k-'+s).value.trim();if(!k)return;try{if($('#c-'+s).checked){await api('key',{provider:s,key:k});if(!S.keys.includes(s))S.keys.push(s);sessionStorage.removeItem('ak_'+s)}else{if(S.keys.includes(s)){await api('key',{provider:s,key:''});S.keys=S.keys.filter(p=>p!==s)}sessionStorage.setItem('ak_'+s,k)}openConn()}catch(err){alert(err.message)}}
-  if(x){await api('key',{provider:x,key:''});S.keys=S.keys.filter(p=>p!==x);sessionStorage.removeItem('ak_'+x);openConn()}};
 $('#b-use').onclick=async()=>{const j=await api('usage');const n=v=>(+v||0).toLocaleString();
   const ti=j.totals.reduce((a,r)=>a+ +r.i,0),to=j.totals.reduce((a,r)=>a+ +r.o,0),tn=j.totals.reduce((a,r)=>a+ +r.n,0),mx=Math.max(1,...j.daily.map(d=>+d.t));
   $('#dt').textContent='Usage';
