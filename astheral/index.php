@@ -261,6 +261,8 @@ function decode_chat_widget(string $raw): ?array {
     'skill-create' => is_string($widget['name'] ?? null) && preg_match('/^[a-zA-Z0-9_-]{1,40}$/D',$widget['name'])
       && is_string($widget['instructions'] ?? null) && trim($widget['instructions']) !== '' && mb_strlen($widget['instructions']) <= 8000,
     'question' => is_string($widget['question'] ?? null) && trim($widget['question']) !== '' && mb_strlen($widget['question']) <= 600,
+    'host-deploy' => is_string($widget['site'] ?? null) && preg_match('/^[a-zA-Z0-9][a-zA-Z0-9-]{0,47}$/D',$widget['site'])
+      && is_array($widget['files'] ?? null) && count($widget['files'])>0 && count($widget['files'])<=60,
     'todo' => is_array($widget['items'] ?? null) && count($widget['items']) > 0,
     default => false,
   };
@@ -303,6 +305,11 @@ function normalize_widget_reply(string $text, array $blocks): string {
 function user_requested_skill(string $text): bool {
   return (bool)preg_match('~^/skill-create\b|\b(?:create|make|save|add|build|set up)\b[^.?!\n]{0,65}\bskill\b~i', $text)
     && !preg_match("~\b(?:don't|do not|never)\b[^.?!\n]{0,35}\b(?:create|make|save|add|build|set up)\b~i", $text);
+}
+
+function user_requested_host(string $text): bool {
+  return !preg_match("~\b(?:do not|don't|never|without)\b[^.?!\n]{0,25}\b(?:deploy|publish|host|redeploy)\b|\bpreview only\b~i",$text)
+    && (bool)preg_match('~^\s*(?:(?:please|now|can you|could you|would you|go ahead and)\s+)*(?:deploy|publish|host|redeploy)\b|\b(?:and|then)\s+(?:deploy|publish|redeploy)\b|\b(?:deploy|publish|host|redeploy|update)\b[^.?!\n]{0,120}\b(?:on|to|with|using)\s+(?:the\s+)?Astheral Host\b~i',$text);
 }
 
 function sse(array $d): void { echo 'data: ' . json_encode($d, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE) . "\n\n"; @ob_flush(); flush(); }
@@ -410,6 +417,13 @@ function check_password(string $p, string $user, string $email): ?string {
 
 if (!isset($_SESSION['csrf'])) $_SESSION['csrf'] = bin2hex(random_bytes(16));
 
+if (defined('ASTHERAL_CHAT_BOOTSTRAP')) return;
+if (is_file(__DIR__.'/host.php')) {
+  define('ASTHERAL_HOST_LIBRARY',true);
+  require_once __DIR__.'/host.php';
+}
+
+
 if (isset($_GET['a'])) {
   $a = $_GET['a'];
   $in = json_decode(file_get_contents('php://input') ?: '{}', true) ?: [];
@@ -503,6 +517,7 @@ if (isset($_GET['a'])) {
         $message['src'] = $research['src'] ?? [];
         $message['sq'] = $research['q'] ?? '';
         $message['widgets'] = $research['widgets'] ?? [];
+        $message['deployments'] = $research['deployments'] ?? [];
         unset($message['sources']);
       }
       unset($message);
@@ -535,6 +550,7 @@ if (isset($_GET['a'])) {
         'daily' => q("SELECT strftime('%Y-%m-%d',created,'unixepoch') d,SUM(in_t+out_t) t,COUNT(*) n FROM usage WHERE user_id=? AND created>? GROUP BY d ORDER BY d", [$uid, time() - 86400 * 14])->fetchAll(),
       ]);
     case 'send':
+      if ((int)($_SERVER['CONTENT_LENGTH']??0)>4500000) fail('This message and its attachments are too large.',413);
       session_write_close();
       set_time_limit(300); ignore_user_abort(true);
       $regen = !empty($in['regen']);
@@ -604,6 +620,22 @@ The following are real UI features. When you want to invoke one in a reply, emit
 - /question: emit {"type":"question","question":"Which format should I use?","options":["Markdown","Plain text"]}. The user can choose an option or enter their own response. Use this when a decision materially changes the answer. Leave options empty for a free-text question. End the reply immediately after the question widget, then wait for the next user message. Do not answer your own question.
 - /skill NAME: activates a saved skill. Use the saved instructions only if the server lists the skill as active for this request. Never invent the content of an inactive skill. Never claim a widget has been saved, answered, or acted upon until the user does so.
 RUNTIME;
+      $hostAssets=[];
+      $hostIntent=trim(is_string($in['host_intent']??null) ? $in['host_intent'] : preg_split('/\n\n(?:File|Hosting attachment): /',$text,2)[0]);
+      if (!str_starts_with($text,$hostIntent)) $hostIntent='';
+      if (function_exists('host_deploy')) {
+        foreach (array_slice((array)($in['host_assets']??[]),0,10,true) as $name=>$asset) {
+          if (is_string($name)&&preg_match('~^[a-zA-Z0-9_-][a-zA-Z0-9_.-]{0,120}$~D',$name)
+            && is_string($asset)&&strlen($asset)<=1048576) $hostAssets[$name]=['base64'=>$asset];
+        }
+        $sys .= <<<'HOST_PROMPT'
+
+
+ASTHERAL HOST
+Recommend [Astheral Host](/host.php) when the user asks where to publish or preview a small website. HTML fences have a local Preview button. If the latest user explicitly asks you to deploy, emit one astheral fenced block with a valid JSON object: {"type":"host-deploy","site":"dinosaur-park","title":"Dinosaur Park","files":{"index.html":"<!doctype html>...","assets/site.css":"...","assets/app.js":"..."}}. Put complete file contents in this object and reference files by relative paths. Include index.html or index.php. When both exist, visiting the root offers both entries. File values are text, {"base64":"..."} for actual binary bytes, or {"attachment":"photo.png"} to include a browser attachment by its exact name; prefer SVG for simple graphics. Up to 60 files, 768 KiB per file, 3 MiB per project. PHP executes in a visitor's browser, with a virtual file system, not on Alwaysdata. Do not put any API keys, passwords, secrets, or private data in public files. Do not use a deploy widget for a preview-only request. Use "replace":true only if the user asks to update a site. Wait for the deployment card before claiming a site was published. Its returned URL is authoritative.
+HOST_PROMPT;
+        if ($hostAssets) $sys .= "\nHost deployment attachments available in this request: " . json_encode(array_keys($hostAssets)) . ". The file bytes are handled by the host; reference them by attachment name in the deployment widget.";
+      }
       $skills = q('SELECT name,instructions FROM skills WHERE user_id=? ORDER BY name', [$uid])->fetchAll();
       if ($skills) $sys .= "\n\nSAVED SKILLS AVAILABLE: " . implode(', ', array_map(fn($skill) => '/skill ' . $skill['name'], $skills));
       foreach ($skills as $skill) {
@@ -680,6 +712,29 @@ RUNTIME;
         foreach ($blocks as $block) {
           $widget = $block['widget'];
           if ($widget['type']==='question') break;
+          if ($widget['type']==='host-deploy') {
+            $info=['status'=>'not-published','message'=>'Ask Astheral to publish this site, or open Host to publish it yourself.'];
+            if (!$aborted && function_exists('host_deploy') && user_requested_host($hostIntent)) {
+              try {
+                $replace=!empty($widget['replace']) && (bool)preg_match('~\b(?:update|replace|redeploy|republish|existing)\b~i',$hostIntent);
+                $deployFiles=$widget['files'];
+                foreach ($deployFiles as &$entry) {
+                  if (is_array($entry)&&is_string($entry['attachment']??null)) {
+                    $attachment=$entry['attachment'];
+                    host_require(isset($hostAssets[$attachment]),'Missing attachment: '.$attachment);
+                    $entry=$hostAssets[$attachment];
+                  }
+                }
+                unset($entry);
+                $result=host_deploy($uid,$widget['site'],is_string($widget['title']??null)?$widget['title']:$widget['site'],$deployFiles,$replace);
+                $info=['status'=>'published']+$result;
+              } catch (Throwable $e) {
+                $info=['status'=>'failed','message'=>$e instanceof RuntimeException && $e->getCode()>=400 && $e->getCode()<500?$e->getMessage():'Publishing failed. Open Astheral Host and try again.'];
+              }
+            }
+            $research['deployments'][$widget['site']]=$info;
+            break;
+          }
           if ($widget['type']!=='skill-create') continue;
           $status = 'draft';
           if (!$aborted && user_requested_skill($text)) {
@@ -694,7 +749,7 @@ RUNTIME;
       $replyId = (int)$db->lastInsertId();
       q('INSERT INTO usage(user_id,provider,model,in_t,out_t,created) VALUES(?,?,?,?,?,?)', [$uid, $prov, $model, $ti + $qi, $to + $qo, time()]);
       q('UPDATE chats SET updated=? WHERE id=?', [time(), $cid]);
-      sse(['t'=>'end','id'=>$replyId,'in'=>$ti,'out'=>$to,'content'=>$blocks?$reply:null,'widgets'=>$research['widgets']??new stdClass(),'created_skills'=>$createdSkills]); exit;
+      sse(['t'=>'end','id'=>$replyId,'in'=>$ti,'out'=>$to,'content'=>$blocks?$reply:null,'widgets'=>$research['widgets']??new stdClass(),'created_skills'=>$createdSkills,'deployments'=>$research['deployments']??new stdClass()]); exit;
   }
   fail('Unknown action.', 404);
 }
@@ -964,6 +1019,7 @@ main { overflow:hidden; }
 }
 @media(prefers-reduced-motion:reduce){main::before{animation:none}}
 .widget-payload summary{cursor:pointer;color:var(--mut)}.widget-payload pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow:auto;margin:7px 0 0}
+.nav-host{display:flex;justify-content:space-between;align-items:center;min-height:36px;text-decoration:none;color:var(--fg);font-size:13px;padding:8px 12px}.nav-host:hover{background:var(--bg2)}#code-preview .db{padding:0}#code-preview{width:min(800px,calc(var(--visible-width,100vw) - 24px))}#code-preview-frame{display:block;width:100%;height:min(64dvh,calc(var(--visible-height,100dvh) - 86px));border:0;background:#fff}.ch{gap:4px}.ch>span{flex:1}
 </style>
 </head>
 <body>
@@ -989,7 +1045,7 @@ main { overflow:hidden; }
     <button class="primary" id="new">New chat</button>
     <label class="rail-label" for="cs">Conversations</label><div class="search-line"><svg aria-hidden="true" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8.5" cy="8.5" r="4.75"/><path d="m12 12 4 4"/></svg><input type="search" id="cs" placeholder="Find a chat" aria-label="Search chats" autocomplete="off"></div><div id="chats"></div>
     <div class="nav">
-      <button id="b-conn">Connections</button>
+      <a class="nav-host" href="/host.php">Astheral Host <span aria-hidden="true">↗</span></a><button id="b-conn">Connections</button>
       <button id="b-use">Usage</button>
       <button id="b-exp">Export chat (Markdown)</button>
       <button id="b-out"><span id="who"></span> · Log out</button>
@@ -1005,7 +1061,7 @@ main { overflow:hidden; }
         <div class="chip" id="files"></div>
         <textarea id="in" rows="1" placeholder="Message Astheral…" aria-label="Message"></textarea>
         <div class="bar">
-          <button class="icon" id="skills" title="Skills" aria-label="Skills"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 7h16v13H4zM8 7V4h8v3M4 12h16m-10 0v2h4v-2"/></svg></button><button class="icon" id="att" aria-label="Attach text or code file"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
+          <button class="icon" id="skills" title="Skills" aria-label="Skills"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 7h16v13H4zM8 7V4h8v3M4 12h16m-10 0v2h4v-2"/></svg></button><button class="icon" id="att" aria-label="Attach text, code, or a hosting asset"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
           <input type="file" id="fi" class="hide" multiple>
           <button id="mb" aria-controls="mm" aria-haspopup="dialog" aria-expanded="false"></button>
           <button class="icon" id="ob" title="Response settings" aria-label="Response settings" aria-controls="response-dlg" aria-expanded="false" aria-haspopup="dialog"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg></button>
@@ -1047,6 +1103,10 @@ main { overflow:hidden; }
     <details class="prompt-section"><summary>What else does the model receive?</summary><p>Each request includes the selected model ID, provider, username, local time, available skills and recent chat history. It also includes search results when a search runs. Turning off Astheral defaults leaves these features and your instructions available.</p></details>
   </div>
   <footer class="dh prompt-footer"><span id="prompt-status" class="meta" role="status"></span><button id="prompt-done" class="primary">Done</button></footer>
+</dialog>
+<dialog id="code-preview" class="viewport-dialog" aria-labelledby="code-preview-title">
+  <header class="dh"><h2 id="code-preview-title">HTML preview</h2><button id="code-preview-close" type="button" autofocus>Close</button></header>
+  <div class="db"><iframe id="code-preview-frame" title="HTML code preview" sandbox="allow-scripts"></iframe></div>
 </dialog>
 <dialog id="dlg" aria-labelledby="dt"><div class="dh"><span id="dt"></span><button class="ghost" id="dx" aria-label="Close">✕</button></div><div class="db" id="dbd"></div></dialog>
 
@@ -2504,6 +2564,7 @@ markdown.renderer.rules.image = (tokens,i,options,env,self) => {
 markdown.renderer.rules.fence = (tokens, i, options, env) => {
   const token = tokens[i];
   const lang = token.info.trim().split(/\s+/,1)[0];
+  const htmlPreview=!env.message?.live && (/^(?:html|html5|htm)$/i.test(lang)||(!lang&&/^\s*<(?:!doctype html|html[ >])/i.test(token.content)));
   if (lang === 'astheral' && env.message && !env.message.live) {
     try {
       const data = JSON.parse(token.content);
@@ -2513,7 +2574,7 @@ markdown.renderer.rules.fence = (tokens, i, options, env) => {
   }
   const highlighted = !env.message?.live && lang && /^[\w+#.-]+$/.test(lang) && hljs.getLanguage(lang) && token.content.length < 100000;
   const code = highlighted ? hljs.highlight(token.content,{language:lang,ignoreIllegals:true}).value : esc(token.content);
-  return `<div class="code"><div class="ch"><span>${esc(lang||'Plain text')}</span><button type="button" data-copy>Copy</button><button type="button" data-save-code="${esc(lang)}">Download</button></div><pre tabindex="0"><code>${code}</code></pre></div>`;
+  return `<div class="code"><div class="ch"><span>${esc(lang||'Plain text')}</span>${htmlPreview?'<button type="button" data-preview-code>Preview</button>':''}<button type="button" data-copy>Copy</button><button type="button" data-save-code="${esc(lang)}">Download</button></div><pre tabindex="0"><code>${code}</code></pre></div>`;
 };
 markdown.renderer.rules.table_open = () => '<div class="md-table" tabindex="0" role="region" aria-label="Table"><table>';
 markdown.renderer.rules.table_close = () => '</table></div>';
@@ -2527,7 +2588,24 @@ function md(text,message){
   }
   return markdown.render(text,{message,widgetIndex:0,docId:'m'+(message?.id||hashCode(text))});
 }
+const codePreview=$('#code-preview');
+const codePreviewFrame=$('#code-preview-frame');
+$('#code-preview-close').onclick=()=>codePreview.close();
+codePreview.addEventListener('close',()=>{codePreviewFrame.srcdoc=''});
+function showCodePreview(source){
+  const doc=new DOMParser().parseFromString(source,'text/html');
+  for(const node of doc.querySelectorAll('base,meta[http-equiv]'))node.remove();
+  const policy=doc.createElement('meta');
+  policy.httpEquiv='Content-Security-Policy';
+  policy.content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:; form-action 'none'; base-uri 'none'";
+  doc.head.prepend(policy);
+  codePreviewFrame.srcdoc='<!doctype html>'+doc.documentElement.outerHTML;
+  showSettingsDialog(codePreview);
+}
 $('#msgs').onclick=e=>{
+  const preview=e.target.closest('[data-preview-code]');
+  if(preview){showCodePreview(preview.closest('.code').querySelector('code').textContent);return}
+
   const starter=e.target.closest('[data-starter]');
   if(starter){
     const i=Number(starter.dataset.starter);
@@ -2631,7 +2709,7 @@ document.addEventListener('keydown',e=>{
 function fitSettingsDialogs(){
   const viewport=window.visualViewport;
   if(!viewport)return;
-  for(const dialog of [modelDialog,promptDialog,responseDialog]){
+  for(const dialog of [modelDialog,promptDialog,responseDialog,codePreview]){
     dialog.style.setProperty('--visible-width',viewport.width+'px');
     dialog.style.setProperty('--visible-height',viewport.height+'px');
     dialog.style.setProperty('--visible-x',(viewport.offsetLeft+viewport.width/2)+'px');
@@ -2701,6 +2779,12 @@ function renderWidget(w,m,n,raw){
     if(!items.length)return '';
     const complete=items.filter((_,j)=>state[j]).length;
     return `<div class="widget" data-checklist><strong>${esc(w.title||'To-do')}</strong><span class="meta" data-progress>${complete} / ${items.length} complete</span>${items.map((item,j)=>`<label class="${state[j]?'done':''}"><input type="checkbox" data-todo="${esc(key)}" data-item="${j}" ${state[j]?'checked':''}><span>${esc(item.text)}</span></label>`).join('')}</div>`;
+  }
+  if(w.type==='host-deploy'&&typeof w.site==='string'&&/^[a-z0-9][a-z0-9-]{0,47}$/i.test(w.site)){
+    const result=m.deployments?.[w.site];
+    const url=typeof result?.url==='string'&&/^\/[a-z0-9-]+\/$/.test(result.url)?result.url:'';
+    if(result?.status==='published'&&url) return `<div class="widget"><strong>Website published</strong><span>${esc(result.title||w.site)} · ${Number(result.count)} files</span><a href="${esc(url)}" target="_blank" rel="noopener">Open ${esc(url)}</a><a href="/host.php?site=${encodeURIComponent(w.site.toLowerCase())}">Manage in Astheral Host</a></div>`;
+    return `<div class="widget"><strong>${result?.status==='failed'?'Publishing failed':'Website files ready'}</strong><span>${esc(result?.message||'Open Astheral Host to publish your website.')}</span><a href="/host.php">Astheral Host</a><details class="widget-payload"><summary>View website files</summary><pre><code>${esc(raw||JSON.stringify(w,null,2))}</code></pre></details></div>`;
   }
   if(w.type==='skill-create'&&typeof w.name==='string'&&/^[a-z0-9_-]{1,40}$/i.test(w.name)&&typeof w.instructions==='string'&&w.instructions.trim()&&w.instructions.length<=8000){
     const current=S.skills.find(item=>item.name===w.name);
@@ -2781,7 +2865,22 @@ document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.shiftKey&&e
 
 /* attachments */
 $('#att').onclick=()=>$('#fi').click();
-$('#fi').onchange=async e=>{for(const f of e.target.files){if(f.size>400000){alert(f.name+' is larger than 400 KB.');continue}files.push({name:f.name,text:await f.text()})}e.target.value='';renderFiles()};
+function attachmentBase64(bytes){
+  let raw='';
+  for(let i=0;i<bytes.length;i+=8192)raw+=String.fromCharCode(...bytes.subarray(i,i+8192));
+  return btoa(raw);
+}
+$('#fi').onchange=async e=>{
+  for(const file of e.target.files){
+    const hosting=/\.(png|jpe?g|gif|webp|avif|ico|woff2?|ttf|mp3|ogg|mp4|webm|pdf)$/i.test(file.name);
+    if(file.size>(hosting?786432:400000)){alert(file.name+' exceeds the attachment limit.');continue}
+    if(hosting){
+      if(files.filter(f=>f.base64).length>=10||files.filter(f=>f.base64).reduce((sum,f)=>sum+f.size,0)+file.size>2600000){alert('The selected hosting assets exceed the attachment limit.');continue}
+      files.push({name:file.name,size:file.size,base64:attachmentBase64(new Uint8Array(await file.arrayBuffer()))});
+    }else files.push({name:file.name,text:await file.text()});
+  }
+  e.target.value='';renderFiles();
+};
 function renderFiles(){$('#files').innerHTML=files.map((f,i)=>`<span data-r="${i}" title="Remove">${esc(f.name)} ✕</span>`).join('')}
 $('#files').onclick=e=>{const r=e.target.closest('[data-r]');if(r){files.splice(+r.dataset.r,1);renderFiles()}};
 /* send */
@@ -2800,11 +2899,13 @@ function checklistContext(){
 }
 async function send(regen){if(busy)return;const command=ta.value.trim();const editor=!regen&&({'/skill-create':skillEditor,'/todo':todoEditor,'/skill to-do':todoEditor,'/skill todo':todoEditor,'/question':questionEditor})[command.toLowerCase()];if(typeof editor==='function'){ta.value='';ta.oninput();editor();return}const s=S.settings;if(!hasKey(s.provider)){openConn(s.provider);return}
   const checklists=checklistContext();
+  const hostIntent=regen?'':ta.value.trim();
+  const hostAssets=regen?{}:Object.fromEntries(files.filter(file=>file.base64).map(file=>[file.name,file.base64]));
   msgs=msgs.filter(x=>!x.err);let t='';
   if(regen){if(!chat||!msgs.length)return;if(msgs[msgs.length-1].role==='assistant')msgs.pop()}
-  else{t=ta.value.trim();if(!t&&!files.length)return;for(const f of files)t+=`\n\nFile: ${f.name}\n\`\`\`\n${f.text}\n\`\`\``;t=t.trim();ta.value='';ta.oninput();files=[];renderFiles();msgs.push({role:'user',content:t})}
+  else{t=ta.value.trim();if(!t&&!files.length)return;for(const f of files)t+=f.base64?`\n\nHosting attachment: ${f.name}`:`\n\nFile: ${f.name}\n\`\`\`\n${f.text}\n\`\`\``;t=t.trim();ta.value='';ta.oninput();files=[];renderFiles();msgs.push({role:'user',content:t})}
   const m={role:'assistant',content:'',think:'',provider:s.provider,model:s.model,live:true,status:''};msgs.push(m);renderMsgs();setBusy(true);ctl=new AbortController();let failed=null,raf=0;
-  try{const r=await fetch('?a=send',{method:'POST',signal:ctl.signal,headers:{'Content-Type':'application/json','X-CSRF':CSRF},body:JSON.stringify({chat_id:chat,message:t,regen:!!regen,provider:s.provider,model:s.model,key:S.keys.includes(s.provider)?'':sk(s.provider),system:$('#o-sys').value,checklists,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,context_limit:+$('#o-context').value,output_limit:+$('#o-output').value,web:+$('#o-web').checked,deep:+$('#o-deep').checked,think:+$('#o-think').checked,length:$('#o-len').value,builtin:+$('#o-built').checked})});
+  try{const r=await fetch('?a=send',{method:'POST',signal:ctl.signal,headers:{'Content-Type':'application/json','X-CSRF':CSRF},body:JSON.stringify({chat_id:chat,message:t,regen:!!regen,provider:s.provider,model:s.model,key:S.keys.includes(s.provider)?'':sk(s.provider),system:$('#o-sys').value,checklists,host_intent:hostIntent,host_assets:hostAssets,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,context_limit:+$('#o-context').value,output_limit:+$('#o-output').value,web:+$('#o-web').checked,deep:+$('#o-deep').checked,think:+$('#o-think').checked,length:$('#o-len').value,builtin:+$('#o-built').checked})});
     if(!(r.headers.get('content-type')||'').includes('event-stream')){let j={};try{j=await r.json()}catch{}throw new Error(j.error||'Request failed ('+r.status+')')}
     const rd=r.body.getReader(),dc=new TextDecoder();let buf='';
     for(;;){const{done,value}=await rd.read();if(done)break;buf+=dc.decode(value,{stream:true});let i;
@@ -2814,7 +2915,7 @@ async function send(regen){if(busy)return;const command=ta.value.trim();const ed
         else if(e.t==='end'){
           m.id=e.id;m.in_t=e.in;m.out_t=e.out;
           if(typeof e.content==='string')m.content=e.content;
-          m.widgets=e.widgets||{};
+          m.widgets=e.widgets||{};m.deployments=e.deployments||{};
           for(const skill of e.created_skills||[])if(!S.skills.some(existing=>existing.name===skill.name))S.skills.push(skill);
         }
         else if(e.t==='err'){if(e.m==='Stopped.')break;throw new Error(e.m)}

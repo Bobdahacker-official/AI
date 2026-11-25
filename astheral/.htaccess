@@ -1,0 +1,6 @@
+# Astheral Host routes
+RewriteEngine On
+RewriteRule ^data(?:/|$) - [F,L,NC]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^[a-z0-9][a-z0-9-]{0,47}(?:/.*)?$ host.php [END]
