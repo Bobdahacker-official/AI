@@ -72,6 +72,7 @@ function host_deploy(int $uid, string $slug, string $title, array $input, bool $
     host_require($size<=HOST_SITE_LIMIT,'A site can use up to 3 MiB.',413);
     $title=mb_substr(trim($title),0,90)?:$slug;
     global $db;
+    $db->exec('PRAGMA busy_timeout=5000');
     $db->exec('BEGIN IMMEDIATE');
     try {
         $existing=q('SELECT user_id,size,created FROM hosted_sites WHERE slug=?',[$slug])->fetch();
@@ -329,7 +330,7 @@ textarea#code:focus-visible{outline-offset:-2px}#binary{padding:10px}
 .analytics-title{align-items:flex-start}.analytics-title h2{margin:0 0 3px}.analytics-title p{font-size:13px}
 .analytics-total{border-bottom:1px solid var(--line);padding:4px 0 9px;margin-bottom:9px}.analytics-total strong{font-size:26px}
 #analytics table{width:100%;text-align:left;border-collapse:collapse;font-size:13px}#analytics th,#analytics td{border-bottom:1px solid var(--line);padding:5px 4px}#analytics tr>*:last-child{text-align:right}
-.status:empty{min-height:0;margin:0}.host-footer{margin-top:12px;font-size:12px}
+.status:empty{min-height:0;margin:0}
 dialog{width:min(430px,calc(100vw - 24px));padding:14px}.dialog-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}.dialog-heading h2{margin:0}.dialog-heading button{padding:5px 8px}
 #publish-form,#add-form,.new-choices{display:grid;gap:10px}.new-choices button{display:grid;text-align:left;gap:4px}.new-choices small{display:block}
 @media(max-width:760px){.host-layout{grid-template-columns:1fr;gap:12px}.site-rail .sites{grid-template-columns:repeat(2,minmax(0,1fr));max-height:120px}.site-rail .sites:has(.rail-empty){grid-template-columns:1fr}}
@@ -409,7 +410,7 @@ section.auth{width:min(100%,420px);max-width:100%;min-width:0;margin:clamp(8px,4
     <p id="status" class="status" role="status"></p>
   </section>
 </div>
-<footer class="host-footer"><details><summary>Limits and PHP behavior</summary><p class="note">Up to 60 files, 768 KiB per file, 3 MiB per site, 12 sites and 12 MiB per account. Up to 10 publishes or updates in 10 minutes. PHP runs in the visitor’s browser. Its source is sent to visitors, so keep secrets out of published files. Server sessions and databases are unavailable on hosted sites.</p></details></footer>
+
 <dialog id="new-dialog" aria-labelledby="new-title">
   <div class="dialog-heading"><h2 id="new-title">New website</h2><button type="button" data-close="new-dialog" aria-label="Close">✕</button></div>
   <div class="new-choices"><button id="new" type="button"><strong>HTML website</strong><small>Start with an HTML page and add CSS, JavaScript, or assets.</small></button><button id="new-php" type="button"><strong>PHP website</strong><small>Start with an index.php that runs in the browser.</small></button></div>
@@ -419,7 +420,7 @@ section.auth{width:min(100%,420px);max-width:100%;min-width:0;margin:clamp(8px,4
   <form id="publish-form">
     <label>Site address<input id="slug" maxlength="48" placeholder="dinosaurs" spellcheck="false" required></label>
     <label>Site title<input id="title" maxlength="90" placeholder="Dinosaur park"></label>
-    <p class="note">Published files will be available publicly at this address.</p>
+    <p class="note">Published files will be available publicly at this address.</p><p id="publish-php-note" class="note" hidden>PHP runs in the visitor’s browser. Published PHP source is public.</p>
     <p id="publish-status" class="status" role="status"></p>
     <button id="publish-confirm" class="primary" type="submit">Publish website</button>
   </form>
@@ -602,6 +603,7 @@ if(!signedIn){
     $('#publish-status').textContent='';
     $('#publish-title').textContent=current?'Publish changes':'Publish website';
     $('#publish-confirm').textContent=current?'Publish changes':'Publish website';
+    $('#publish-php-note').hidden=!Object.keys(files).some(path=>path.toLowerCase().endsWith('.php'));
     $('#publish-dialog').showModal();
   };
   $('#publish-form').onsubmit=async e=>{
