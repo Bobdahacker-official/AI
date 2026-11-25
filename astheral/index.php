@@ -470,7 +470,7 @@ header('Cache-Control: no-store');
 <title>Astheral</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23111'/%3E%3Ccircle cx='16' cy='16' r='7' fill='none' stroke='%23fff' stroke-width='2.4'/%3E%3Ccircle cx='23' cy='9' r='2.6' fill='%23fff'/%3E%3C/svg%3E">
 <style>
-:root{--bg:#fff;--bg2:#f6f6f7;--fg:#111;--mut:#6b7280;--line:#e5e7eb;--acc:#111;--accfg:#fff;--err:#b42318;--ok:#067647;--r:16px;--sh:0 8px 30px rgba(0,0,0,.08)}
+:root{--bg:#fff;--bg2:#f6f6f7;--fg:#111;--mut:#6b7280;--line:#e5e7eb;--acc:#111;--accfg:#fff;--err:#b42318;--ok:#067647;--r:6px;--control-radius:4px;--surface-radius:8px;--sh:0 8px 30px rgba(0,0,0,.08)}
 @media(prefers-color-scheme:dark){:root{--bg:#0f0f10;--bg2:#17171a;--fg:#ededed;--mut:#9ca3af;--line:#2a2a2f;--acc:#ededed;--accfg:#111;--err:#f97066;--ok:#47cd89;--sh:0 8px 30px rgba(0,0,0,.5)}}
 *{box-sizing:border-box}html,body{height:100%;margin:0}
 body{font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--fg);-webkit-font-smoothing:antialiased}
@@ -519,7 +519,7 @@ main{flex:1;min-width:0;display:flex;flex-direction:column;position:relative}
 .ch button{min-height:28px;padding:2px 8px;font-size:12px;border:0;background:transparent}
 .code pre{margin:0;padding:12px;overflow:auto}.code code{background:none;padding:0;font-size:13px;line-height:1.5;white-space:pre}
 .meta{font-size:12px;color:var(--mut);margin-top:4px}.meta a{color:inherit}
-.ico{width:24px;height:24px;display:inline-grid;place-items:center;flex:none;color:var(--fg)}svg{stroke-linecap:round;stroke-linejoin:round}#cs{min-height:38px;background:var(--bg)}
+.ico{width:24px;height:24px;display:inline-grid;place-items:center;flex:none;color:var(--fg)}svg{stroke-linecap:round;stroke-linejoin:round}
 .dots span{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--mut);margin-right:4px;animation:d 1s infinite}.dots span:nth-child(2){animation-delay:.15s}.dots span:nth-child(3){animation-delay:.3s}
 @keyframes d{50%{opacity:.2}}
 .dock{padding:8px 16px calc(16px + env(safe-area-inset-bottom))}
@@ -571,7 +571,7 @@ aside .logo{gap:10px;font-size:18px;padding:0 6px 9px}
 #new{display:flex;align-items:center;gap:10px;padding-inline:14px;border-radius:7px;font-weight:650}
 #new::before{content:"+";font-size:19px;line-height:1}
 .rail-label{font-weight:650;font-size:12px;color:var(--mut);margin:8px 0 -6px 3px}
-#cs{appearance:none;min-height:39px;border-radius:6px;background:var(--surface);border-color:var(--field-line);padding-block:7px}
+
 #chats{min-height:0}.ci{margin:1px 0}.ci.on{background:var(--accent-soft)}.ci.on button:first-child{font-weight:650}.ci .x{opacity:.75}
 .nav{padding-top:8px}.nav button{font-size:13px;min-height:36px}
 main{height:100%;min-height:0;background:radial-gradient(ellipse 76% 63% at 70% 0%,var(--cloud),transparent 80%),radial-gradient(ellipse 64% 52% at 14% 38%,var(--horizon),transparent 80%),var(--bg)}
@@ -632,10 +632,10 @@ dialog{background:var(--surface);box-shadow:var(--sh);max-height:calc(100dvh - 2
 .logo .wordmark-mark{width:24px;height:24px;color:var(--acc);flex:none}
 .logo{font-weight:730;letter-spacing:-.035em}
 dialog{border-radius:12px}
-.viewport-dialog .dh button,.top button,#cm,#cp,#cu{border-radius:6px}
-.viewport-dialog .db .widget,.widget,.code{border-radius:8px}
-#model-search{position:static;appearance:none;background:var(--surface);border:1px solid var(--field-line);border-radius:6px;min-height:41px;margin-bottom:8px}
-#model-search::placeholder{color:var(--mut);opacity:1}
+
+
+
+
 .model-body .grp{color:var(--mut);letter-spacing:.025em;font-size:12px;font-weight:650;padding:10px 5px 4px;text-transform:none}
 .model-body .orow{border-bottom:1px solid var(--line)}
 .model-body .opt{border-radius:4px}
@@ -667,6 +667,30 @@ dialog{border-radius:12px}
   .viewport-dialog > .dh { padding-block:5px; }
   .viewport-dialog > .db { padding-block:8px; }
 }
+
+
+/* Use one corner scale for controls and one for surfaces. */
+:where(button,input:not([type=checkbox]),select,textarea){border-radius:var(--control-radius)}
+button,#new,#mb,#prompt-open,.top .icon,.bar .icon,.viewport-dialog .dh button,#o-len,#cm,#cp,#cu,.model-body .opt,.chip span{border-radius:var(--control-radius)}
+.comp,dialog,.widget,.think,.code,.md-table,.prompt-section{border-radius:var(--surface-radius)}
+.ci,.m.a>.ico,.m.u .b,.response-body .tg,.response-body .tg:hover,#msgs .b blockquote{border-radius:var(--control-radius)}
+.starter{border-radius:0}
+#mode-strip button,.pill{border-radius:2px}
+.search-line{
+  display:flex;align-items:center;gap:8px;min-width:0;
+  border-bottom:1px solid var(--field-line);color:var(--mut);
+}
+.search-line svg{flex:none;pointer-events:none}
+.search-line:focus-within{border-color:var(--focus);box-shadow:0 1px 0 var(--focus);color:var(--acc)}
+.search-line input[type=search]{
+  appearance:none;position:static;min-width:0;min-height:40px;
+  padding:6px 2px;border:0;border-radius:0;background:transparent;color:var(--fg);
+  outline:0;box-shadow:none;
+}
+.search-line input::placeholder{color:var(--mut);opacity:1}
+#side .search-line{margin:0 2px 3px}
+.model-body .search-line{margin:0 3px 8px}
+#model-results:empty{display:none}
 </style>
 </head>
 <body>
@@ -690,7 +714,7 @@ dialog{border-radius:12px}
   <aside id="side" aria-label="Conversations">
     <div class="logo" style="margin:0"><svg class="wordmark-mark" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2.5 19.5 11.7 3.8 21 19.5h-6.1m-8.4-5h10.2"/></svg>Astheral</div>
     <button class="primary" id="new">New chat</button>
-    <label class="rail-label" for="cs">Conversations</label><input type="search" id="cs" placeholder="Search chats" aria-label="Search chats" autocomplete="off"><div id="chats"></div>
+    <label class="rail-label" for="cs">Conversations</label><div class="search-line"><svg aria-hidden="true" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8.5" cy="8.5" r="4.75"/><path d="m12 12 4 4"/></svg><input type="search" id="cs" placeholder="Find a chat" aria-label="Search chats" autocomplete="off"></div><div id="chats"></div>
     <div class="nav">
       <button id="b-conn">Connections</button>
       <button id="b-use">Usage</button>
@@ -2275,7 +2299,7 @@ function renderMenu(query=''){
   const group=(label,rows)=>`<section class="model-group"><div class="grp">${label}</div>${rows}</section>`;
   const providers=Object.entries(S.providers).map(([provider,data])=>group(ico(provider)+esc(data.name)+(hasKey(provider)?'':' <span class="pill">No key</span>'),data.models.map(model=>row(provider,model,false)).join(''))).join('');
   const custom=S.custom.length?group('Custom models',S.custom.map(({provider,model})=>row(provider,model,true)).join('')):'';
-  $('#model-body').innerHTML=`<input id="model-search" type="search" aria-label="Search models or providers" placeholder="Search models or providers" autocomplete="off">
+  $('#model-body').innerHTML=`<div class="search-line"><svg aria-hidden="true" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8.5" cy="8.5" r="4.75"/><path d="m12 12 4 4"/></svg><input id="model-search" type="search" aria-label="Search models or providers" placeholder="Search models or providers" autocomplete="off"></div>
     <p id="model-results" class="meta" role="status"></p>${providers}${custom}
     <details class="model-custom"><summary>Add a custom model</summary><div class="model-custom-fields"><select id="cp" aria-label="Provider">${Object.entries(S.providers).map(([p,v])=>`<option value="${p}">${esc(v.name)}</option>`).join('')}</select><input type="text" id="cm" aria-label="Model ID" placeholder="Model ID" autocomplete="off" spellcheck="false"><button id="cu">Add</button></div></details>`;
   $('#model-search').value=query;
