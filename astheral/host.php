@@ -237,7 +237,7 @@ if(!in_array($path,['/host.php','/index.php'],true)){
     }
 }
 if(isset($_GET['a'])){
-    $action=$_GET['a'];$uid=(int)($_SESSION['uid']??0);
+    $action=$_GET['a'];$uid=(int)(authenticated_account()['id']??0);
     try{
         host_require($uid>0,'Sign in to Astheral first.',401);
         if($action==='sites'){
@@ -270,7 +270,8 @@ if(isset($_GET['a'])){
 }
 header('Cache-Control: no-store');
 $csrf=$_SESSION['csrf'];
-$account=isset($_SESSION['uid'])?q('SELECT username FROM users WHERE id=?',[(int)$_SESSION['uid']])->fetchColumn():false;
+$account=authenticated_account()['username']??false;
+$signups=registrations_open();
 ?>
 <!doctype html>
 <html lang="en" data-theme="dark">
@@ -350,8 +351,8 @@ section.auth{width:min(100%,420px);max-width:100%;min-width:0;margin:clamp(8px,4
 <header><strong>Astheral Host</strong><nav><a href="/index.php">Back to chat</a><button id="theme" type="button">Cloudy light</button><?php if($account): ?><span><?=host_e((string)$account)?></span><button id="signout" type="button">Sign out</button><?php endif ?></nav></header>
 <main>
 <?php if(!$account): ?>
-<section class="panel auth"><h1>Sign in to Host</h1><p class="note">Use your Astheral account, or make one here.</p>
-<div class="toolbar"><button id="login-tab">Sign in</button><button id="signup-tab">Create account</button></div>
+<section class="panel auth"><h1>Sign in to Host</h1><p class="note">Use your Astheral account.</p>
+<div class="toolbar"><button id="login-tab">Sign in</button><button id="signup-tab"<?= $signups ? '' : ' hidden' ?>>Create account</button></div>
 <form id="auth"><label id="email-label" hidden>Email<input type="email" id="email" autocomplete="email"></label><label><span id="login-label">Email or username</span><input id="login" autocomplete="username" required></label><label>Password<input type="password" id="password" autocomplete="current-password" required></label><p class="status" id="auth-status" role="status"></p><button class="primary" id="auth-submit">Sign in</button></form></section>
 <?php else: ?>
 <div class="host-layout">
