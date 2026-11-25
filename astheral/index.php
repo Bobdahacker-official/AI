@@ -103,18 +103,18 @@ const DEEP_PROMPT = "\n\nDEEP ANALYSIS MODE IS ON. Work through the problem step
 // id => [name, base URL, protocol, accent, chat model presets]
 const DEFAULT_CHAT_MODEL='gpt-6-luna';
 $P = [
-  'openai'     => ['OpenAI','https://api.openai.com/v1','oa','#10a37f',['gpt-6.2-astra','gpt-6.2-sol','gpt-6-luna','gpt-5.6-sol','gpt-5.5']],
-  'anthropic'  => ['Anthropic','https://api.anthropic.com/v1','an','#d97757',['claude-opus-5-5','claude-sonnet-5-5','claude-haiku-5-5','claude-fable-5-2']],
-  'google'     => ['Google Gemini','https://generativelanguage.googleapis.com/v1beta','gm','#4285f4',['gemini-4-hydrogen','gemini-4-argon','gemini-4-carbon','gemini-4-neon','gemini-3.8-flash','gemini-3.5-flash-lite']],
+  'openai'     => ['OpenAI','https://api.openai.com/v1','oa','#10a37f',['gpt-6.2-astra','gpt-6.2-sol','gpt-6.1-sol','gpt-6.1-terra','gpt-6-astra','gpt-6-sol','gpt-6-luna','gpt-5.6-sol','gpt-5.6-terra','gpt-5.6-luna','gpt-5.5','gpt-5.4','gpt-5.4-mini','gpt-5.4-nano','gpt-5.2']],
+  'anthropic'  => ['Anthropic','https://api.anthropic.com/v1','an','#d97757',['claude-fable-5-2','claude-opus-5-5','claude-sonnet-5-5','claude-haiku-5-5','claude-fable-5-1','claude-opus-4-8','claude-opus-4-7','claude-opus-4-6','claude-sonnet-4-6','claude-haiku-4-5-20251001']],
+  'google'     => ['Google Gemini','https://generativelanguage.googleapis.com/v1beta','gm','#4285f4',['gemini-4-carbon','gemini-4-argon','gemini-4-neon','gemini-4-hydrogen','gemini-3.8-flash','gemini-3.6-flash','gemini-3.5-flash-lite','gemini-3.1-flash-lite','gemini-3.1-pro-preview','gemini-3-flash-preview']],
   'moonshot'   => ['Kimi','https://api.moonshot.ai/v1','oa','#1f6feb',['kimi-k3.1-pro','kimi-k3.1-pro-highspeed','kimi-k3']],
   'deepseek'   => ['DeepSeek','https://api.deepseek.com','oa','#4d6bfe',['deepseek-flash','deepseek-v4-pro']],
   'xai'        => ['xAI','https://api.x.ai/v1','oa','#8d95a7',['grok-4.7']],
-  'openrouter' => ['OpenRouter','https://openrouter.ai/api/v1','oa','#8b5cf6',['openrouter/free','nvidia/nemotron-3-ultra-550b-a55b:free']],
-  'groq'       => ['Groq','https://api.groq.com/openai/v1','oa','#f55036',['openai/gpt-oss-20b','openai/gpt-oss-120b','qwen/qwen3.8-27b']],
-  'cloudflare' => ['Cloudflare Workers AI','https://api.cloudflare.com/client/v4/accounts','oa','#f6821f',['@cf/openai/gpt-oss-20b','@cf/openai/gpt-oss-120b','@cf/meta/llama-3.1-8b-instruct']],
+  'openrouter' => ['OpenRouter','https://openrouter.ai/api/v1','oa','#8b5cf6',['openrouter/free','openai/gpt-6.2-astra','openai/gpt-6.2-sol','openai/gpt-6-luna','anthropic/claude-opus-5.5','anthropic/claude-sonnet-5.5','anthropic/claude-haiku-5.5','google/gemini-4-carbon','google/gemini-4-neon','google/gemini-4-hydrogen','x-ai/grok-4.7','nvidia/nemotron-3.5-super-vl','nvidia/nemotron-3.5-lightning','inclusionai/ling-3.2-flash','baidu/ernie-5.5-flash-preview','thinkingmachines/inkling-2-mini','radixark/daisyrose-27b','mistralai/pixtral-large-2502','nvidia/nemotron-3-ultra-550b-a55b:free','baidu/ernie-5.5-flash-preview:free','nvidia/nemotron-3.5-super-vl:free','nvidia/nemotron-3.5-lightning:free','particle-ai/particle-1:free','recursive/flint-v1.0:free','nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free','inclusionai/ling-3.2-flash:free','liquid/lfm-3-1.7b:free','google/gemma-4-26b-a4b-it:free']],
+  'groq'       => ['Groq','https://api.groq.com/openai/v1','oa','#f55036',['openai/gpt-oss-120b','openai/gpt-oss-20b','qwen/qwen3.8-27b','meta-models/muse-spark-open','minimaxai/minimax-m2.7','llama-3.3-70b-versatile','llama-3.1-8b-instant']],
+  'cloudflare' => ['Cloudflare Workers AI','https://api.cloudflare.com/client/v4/accounts','oa','#f6821f',['@cf/openai/gpt-oss-120b','@cf/openai/gpt-oss-20b','@cf/google/gemma-4-26b-a4b-it','@cf/meta/llama-4-scout-17b-16e-instruct','@cf/meta/llama-3.3-70b-instruct-fp8-fast','@cf/meta/llama-3.1-8b-instruct','@cf/meta/llama-3.1-8b-instruct-fp8','@cf/meta/llama-3.2-3b-instruct','@cf/meta/llama-3.2-1b-instruct','@cf/qwen/qwen3.8-27b','@cf/qwen/qwen3-30b-a3b-fp8','@cf/qwen/qwen2.5-coder-32b-instruct','@cf/qwen/qwq-32b','@cf/mistralai/mistral-small-3.1-24b-instruct','@cf/zai-org/glm-4.7-flash','@cf/ibm-granite/granite-4.0-h-micro','@cf/nvidia/nemotron-3-120b-a12b','@cf/aisingapore/gemma-sea-lion-v4-27b-it','@cf/thinkingmachines/inkling-2-small','@cf/deepseek-ai/deepseek-v4-pro-0813','@cf/deepseek-ai/deepseek-v4.1-flash-1017','@cf/deepseek-ai/deepseek-v4-flash-0731','@cf/zai-org/glm-5.3','@cf/zai-org/glm-5.3-flash','@cf/zai-org/glm-5.2','@cf/moonshotai/kimi-k2.7-code','@cf/moonshotai/kimi-k2.6']],
   'cerebras'   => ['Cerebras','https://api.cerebras.ai/v1','oa','#c78cff',['gpt-oss-120b','qwen-3.8-27b']],
-  'mistral'    => ['Mistral AI','https://api.mistral.ai/v1','oa','#f3a519',['mistral-small-2603','mistral-medium-3-5','mistral-large-4-0','ministral-8b-latest']],
-  'together'   => ['Together AI','https://api.together.ai/v1','oa','#48adf0',['openai/gpt-oss-120b','deepseek-ai/DeepSeek-V4.1-Flash-1017','moonshotai/Kimi-K3']],
+  'mistral'    => ['Mistral AI','https://api.mistral.ai/v1','oa','#f3a519',['mistral-large-4','mistral-small-2603','ministral-14b-2512','ministral-8b-2512','ministral-3b-2512']],
+  'together'   => ['Together AI','https://api.together.ai/v1','oa','#48adf0',['deepseek-ai/DeepSeek-V4-Pro-0813','deepseek-ai/DeepSeek-V4.1-Flash','deepseek-ai/DeepSeek-V4.1-Flash-1017','deepseek-ai/DeepSeek-V4.1-Flash-1017-fast','elorian-labs/glimpse-1.0','meta-models/Muse-Glimmer-30B','meta-models/Muse-Spark-Open-816B-A42B','MiniMaxAI/MiniMax-M3.1-Flash','moonshotai/Kimi-K3','moonshotai/Kimi-K3.1-Pro','nvidia/NVIDIA-Nemotron-3.5-Super-VL','openai/gpt-oss-120b','Prism-ML/Ternary-Bonsai-27B','Qwen/Qwen3.5-9B','Qwen/Qwen3.6-Plus','Qwen/Qwen3.7-Max','Qwen/Qwen3.7-Plus','Qwen/Qwen3.8-Flash','Qwen/Qwen4-Max','reflection/Beam-1.0-501B-A23B','ricursive-ai/Ripple-65B-Preview','tencent/Hy4','thinkingmachines/Inkling-2-Small','zai-org/GLM-5.2','zai-org/GLM-5.3','zai-org/GLM-5.3-Flash']],
 ];
 const THINKING_PATTERNS=[
   'openai'=>'^(?:gpt-(?:5|6)(?:[.\-]|$)(?!.*chat)|o[134](?:[.\-]|$))',
@@ -133,23 +133,25 @@ const THINKING_PATTERNS=[
 const PROVIDER_ACCESS=[
   'openai'=>['docs'=>'https://developers.openai.com/api/docs/models'],
   'anthropic'=>['docs'=>'https://platform.claude.com/docs/en/models/overview'],
-  'google'=>['docs'=>'https://aistudio.google.com/docs/models','free'=>['gemini-4-hydrogen']],
+  'google'=>['docs'=>'https://aistudio.google.com/docs/pricing','free'=>['gemini-4-hydrogen','gemini-3.8-flash','gemini-3.6-flash','gemini-3.5-flash-lite','gemini-3.1-flash-lite']],
   'moonshot'=>['docs'=>'https://platform.kimi.ai/docs/models'],
   'deepseek'=>['docs'=>'https://api-docs.deepseek.com/quick_start/pricing/'],
   'xai'=>['docs'=>'https://docs.x.ai/developers/models'],
-  'openrouter'=>['docs'=>'https://openrouter.ai/collections/free-models','free'=>['openrouter/free','nvidia/nemotron-3-ultra-550b-a55b:free']],
-  'groq'=>['docs'=>'https://console.groq.com/docs/rate-limits','free'=>['openai/gpt-oss-20b','openai/gpt-oss-120b']],
-  'cloudflare'=>['docs'=>'https://developers.cloudflare.com/workers-ai/platform/pricing/','free'=>['@cf/openai/gpt-oss-20b','@cf/openai/gpt-oss-120b','@cf/meta/llama-3.1-8b-instruct'],'account'=>true],
+  'openrouter'=>['docs'=>'https://openrouter.ai/collections/free-models','free'=>['openrouter/free','nvidia/nemotron-3-ultra-550b-a55b:free','baidu/ernie-5.5-flash-preview:free','nvidia/nemotron-3.5-super-vl:free','nvidia/nemotron-3.5-lightning:free','particle-ai/particle-1:free','recursive/flint-v1.0:free','nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free','inclusionai/ling-3.2-flash:free','liquid/lfm-3-1.7b:free','google/gemma-4-26b-a4b-it:free']],
+  'groq'=>['docs'=>'https://console.groq.com/docs/rate-limits','free'=>['openai/gpt-oss-120b','openai/gpt-oss-20b','qwen/qwen3.8-27b']],
+  'cloudflare'=>['docs'=>'https://developers.cloudflare.com/workers-ai/platform/pricing/','free'=>['@cf/openai/gpt-oss-120b','@cf/openai/gpt-oss-20b','@cf/google/gemma-4-26b-a4b-it','@cf/meta/llama-4-scout-17b-16e-instruct','@cf/meta/llama-3.3-70b-instruct-fp8-fast','@cf/meta/llama-3.1-8b-instruct','@cf/meta/llama-3.1-8b-instruct-fp8','@cf/meta/llama-3.2-3b-instruct','@cf/meta/llama-3.2-1b-instruct','@cf/qwen/qwen3.8-27b','@cf/qwen/qwen3-30b-a3b-fp8','@cf/qwen/qwen2.5-coder-32b-instruct','@cf/qwen/qwq-32b','@cf/mistralai/mistral-small-3.1-24b-instruct','@cf/zai-org/glm-4.7-flash','@cf/ibm-granite/granite-4.0-h-micro','@cf/nvidia/nemotron-3-120b-a12b','@cf/aisingapore/gemma-sea-lion-v4-27b-it'],'account'=>true],
   'cerebras'=>['docs'=>'https://inference-docs.cerebras.ai/models/overview','trial'=>true],
   'mistral'=>['docs'=>'https://docs.mistral.ai/inference/model-selection'],
-  'together'=>['docs'=>'https://docs.together.ai/docs/serverless/models'],
+  'together'=>['docs'=>'https://docs.together.ai/docs/serverless/models','billing'=>true,'free'=>['Prism-ML/Ternary-Bonsai-27B']],
 ];
 const LEGACY_PRESETS=[
-  'openai'=>['gpt-5','gpt-5-mini','gpt-4.1','o4-mini'],
-  'google'=>['gemini-2.5-pro','gemini-2.5-flash','gemini-3.5-flash'],
-  'moonshot'=>['kimi-k2-0905-preview','kimi-k2-turbo-preview','moonshot-v1-128k'],
+  'openai'=>['gpt-5','gpt-5-mini','gpt-5-nano','gpt-4.1','o4-mini','gpt-5.1','gpt-5.3-codex'],
+  'anthropic'=>['claude-opus-4-5','claude-opus-4-5-20251101','claude-sonnet-4-5','claude-sonnet-4-5-20250929','claude-3-haiku-20240307'],
+  'google'=>['gemini-2.5-pro','gemini-2.5-flash','gemini-2.5-flash-lite','gemini-3.5-flash'],
+  'moonshot'=>['kimi-k2-0905-preview','kimi-k2-turbo-preview','kimi-k2.5','kimi-k2.6','kimi-k2.7-code','kimi-k2.7-code-highspeed','moonshot-v1-128k'],
   'deepseek'=>['deepseek-chat','deepseek-reasoner'],
   'xai'=>['grok-4','grok-3-mini'],
+  'mistral'=>['mistral-medium-3-5','mistral-medium-latest','mistral-large-2512','devstral-2512','pixtral-large-2411'],
 ];
 function is_thinking_model(string $provider,string $model): bool {
   $pattern=THINKING_PATTERNS[$provider]??null;
@@ -178,6 +180,49 @@ function http(string $url, array $headers = [], ?string $body = null, int $timeo
   if ($body !== null) { curl_setopt($ch, CURLOPT_POST, true); curl_setopt($ch, CURLOPT_POSTFIELDS, $body); }
   $r = curl_exec($ch); $code = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE); $err = curl_error($ch); curl_close($ch);
   return [$code, $r === false ? $err : (string)$r];
+}
+
+function openrouter_chat_catalog(array $entries): array {
+  $models=[];$free=[];
+  foreach($entries as $entry){
+    if(!is_array($entry)||!is_string($id=$entry['id']??null)||!model_id_valid($id))continue;
+    $arch=$entry['architecture']??[];
+    $input=$arch['input_modalities']??null;$output=$arch['output_modalities']??null;
+    if(!is_array($input)||!is_array($output)||!in_array('text',$input,true)||$output!==['text'])continue;
+    if(preg_match('~(?:^|[-/:.])(?:batch|embed(?:ding)?|rerank|decider|moderation|guard|tts|asr)(?:[-/:.]|$)~i',$id))continue;
+    $models[$id]=true;
+    if($id==='openrouter/free'||str_ends_with($id,':free')){
+      $pricing=$entry['pricing']??[];
+      $prompt=$pricing['prompt']??null;$completion=$pricing['completion']??null;
+      if(is_numeric($prompt)&&is_numeric($completion)&&(float)$prompt===0.0&&(float)$completion===0.0)$free[$id]=true;
+    }
+  }
+  return ['models'=>array_keys($models),'free'=>array_keys($free)];
+}
+
+function openrouter_catalog(): ?array {
+  // The public endpoint needs no key. Share the result across accounts.
+  global $dir;
+  $file=$dir.'/openrouter-chat-catalog.json';
+  $lock=@fopen($dir.'/openrouter-catalog.lock','c');
+  if($lock===false)return null;
+  try{
+    $cached=json_decode(@file_get_contents($file)?:'null',true);
+    if(!flock($lock,LOCK_EX|LOCK_NB))return $cached['catalog']??null;
+    // Re-read after obtaining the lock in case another worker updated it.
+    $cached=json_decode(@file_get_contents($file)?:'null',true);
+    if(($cached['refresh_after']??0)>time())return $cached['catalog']??null;
+    [$status,$body]=http('https://openrouter.ai/api/v1/models',['Accept: application/json'],null,5);
+    $data=$status===200?json_decode($body,true):null;
+    $catalog=is_array($data['data']??null)?openrouter_chat_catalog($data['data']):null;
+    if(empty($catalog['models']))$catalog=null;
+    $payload=['refresh_after'=>time()+($catalog?21600:900),'catalog'=>$catalog??$cached['catalog']??null];
+    $tmp=@tempnam($dir,'catalog-');
+    if($tmp!==false){
+      if(@file_put_contents($tmp,json_encode($payload))===false||!@rename($tmp,$file))@unlink($tmp);
+    }
+    return $payload['catalog'];
+  }finally{fclose($lock);}
 }
 
 function safe_url(string $u): bool {
@@ -743,7 +788,7 @@ function stream_model(string $prov, string $model, string $key, string $system, 
     $url = "$base/messages"; $H[] = "x-api-key: $key"; $H[] = 'anthropic-version: 2023-06-01';
     $body = ['model' => $model, 'max_tokens' => $maxTok, 'stream' => true, 'messages' => $msgs];
     if ($system !== '') $body['system'] = $system;
-    if (preg_match('/^claude-(?:fable|opus|sonnet|haiku)-5|^claude-(?:opus|sonnet)-4-[67]/i',$model)) {
+    if (preg_match('/^claude-(?:fable|opus|sonnet|haiku)-5|^claude-(?:opus|sonnet)-4-[678]/i',$model)) {
       $alwaysOn=(bool)preg_match('/^claude-(?:fable|opus)-5/i',$model);
       if($think||$alwaysOn){
         $body['thinking']=['type'=>'adaptive'];
@@ -769,7 +814,7 @@ function stream_model(string $prov, string $model, string $key, string $system, 
     if ($system !== '') $body['systemInstruction'] = ['parts' => [['text' => $system]]];
     $body['generationConfig'] = ['maxOutputTokens' => $maxTok];
     if(preg_match('/^gemini-[34](?:[.\-]|$)/i',$googleModel)&&!preg_match('/tts|image|live/i',$googleModel)){
-      $off=str_contains($googleModel,'3.5-flash-lite')?'MINIMAL':'LOW';
+      $off=preg_match('/^gemini-3\.[15]-flash-lite(?:-|$)/i',$googleModel)?'MINIMAL':'LOW';
       $body['generationConfig']['thinkingConfig']=['thinkingLevel'=>$think?'MEDIUM':$off,'includeThoughts'=>$think];
     }elseif(preg_match('/^gemini-2\.5-flash/i',$googleModel)){
       $body['generationConfig']['thinkingConfig']=['thinkingBudget'=>$think?4096:0,'includeThoughts'=>$think];
@@ -881,6 +926,9 @@ if (isset($_GET['a'])) {
 
   switch ($a) {
     case 'logout': session_destroy(); out(['ok' => 1]);
+    case 'model_catalog':
+      session_write_close();
+      out(['catalog'=>openrouter_catalog()]);
     case 'thinking_mode':
       $prov=(string)($in['provider']??'');$model=(string)($in['model']??'');$mode=$in['mode']??'';
       if(!isset($P[$prov])||!model_id_valid($model)||!in_array($mode,['auto','on','off'],true))fail('Invalid thinking setting.');
@@ -1523,7 +1571,16 @@ main { overflow:hidden; }
 @media(prefers-reduced-motion:reduce){.build-details>summary svg,.build-file>summary svg{transition:none}}
 
 .provider-mark{display:grid;place-items:center;width:21px;height:21px;font-size:10px;font-weight:750;letter-spacing:-.035em;border:1px solid var(--line);border-radius:5px;color:var(--accent);background:var(--bg2)}
-.model-free{color:var(--ok);white-space:nowrap}
+.model-free{color:var(--acc);white-space:nowrap}
+#model-sections{display:flex;gap:18px;padding:0 15px;border-bottom:1px solid var(--line)}
+#model-sections button{border:0;border-radius:0;border-bottom:2px solid transparent;background:none;color:var(--mut);min-height:41px;padding:6px 4px;font-size:14px}
+#model-sections button[aria-pressed=true]{border-bottom-color:var(--acc);color:var(--fg);font-weight:700}
+.model-controls{display:flex;flex-wrap:wrap;align-items:flex-start;gap:6px 12px;margin:0 3px 6px}
+.model-controls>select{width:auto;max-width:100%;font-size:13px}
+.model-controls .model-custom{margin:0;min-width:0}
+.model-controls .model-custom[open]{flex-basis:100%}
+#model-free-note{margin:5px 3px;line-height:1.4}
+.model-group .provider-doc{margin-left:auto;font-size:11px;text-decoration:underline;white-space:normal}
 .model-notice{padding:8px;background:var(--bg2);border-left:2px solid var(--line);font-size:12px;color:var(--mut);margin:4px 0 7px;overflow-wrap:anywhere}
 .provider-doc{margin-left:4px;white-space:nowrap}
 #thinking-auto{margin:0 8px 5px;padding:3px 7px;min-height:28px;font-size:12px;color:var(--acc)}
@@ -1583,6 +1640,10 @@ main { overflow:hidden; }
 </div>
 <dialog id="mm" class="viewport-dialog" aria-labelledby="model-title">
   <header class="dh"><h2 id="model-title">Choose a model</h2><button id="model-close" class="ghost" aria-label="Close model picker" autofocus>✕</button></header>
+  <div id="model-sections" role="group" aria-label="Model catalog">
+    <button type="button" data-model-section="all" aria-pressed="true">All models</button>
+    <button type="button" data-model-section="free" aria-pressed="false">Free</button>
+  </div>
   <div id="model-body" class="db model-body"></div>
 </dialog>
 <dialog id="response-dlg" class="viewport-dialog" aria-labelledby="response-title">
@@ -3040,7 +3101,7 @@ const sk=p=>sessionStorage.getItem('ak_'+p)||'';
 const hasKey=p=>S.keys.includes(p)||!!sk(p);
 
 async function boot(){
-  const j=await api('boot');CSRF=j.csrf;S=j;
+  const j=await api('boot');CSRF=j.csrf;S=j;routerCatalogPromise=undefined;
   $('#auth').classList.toggle('hide',!!j.me);$('#app').classList.toggle('hide',!j.me);
   if(!j.me)return;
   $('#who').textContent=j.me.username;
@@ -3393,43 +3454,78 @@ function setThinkingMode(mode){
 }
 function modelFree(provider,model){return Boolean(S.providers[provider]?.free?.includes(model))}
 function modelLegacy(provider,model){return Boolean(S.legacy_models?.[provider]?.includes(model))}
-function renderMenu(query=''){
+let modelSection='all', modelProvider='', routerCatalogPromise;
+function renderMenu(){
   const current=S.settings;
-  const row=(provider,model,custom)=>`<div class="orow"><button class="opt" aria-pressed="${current.provider===provider&&current.model===model}" data-p="${provider}" data-m="${esc(model)}"><span class="n">${esc(model)}</span>${modelFree(provider,model)?'<span class="pill model-free" title="Eligible for the provider’s free quota">Free tier</span>':''}${custom?`<span class="pill">${esc(S.providers[provider].name)}</span>`:''}</button>${custom?`<button class="x" data-rm="${provider}" data-m="${esc(model)}" aria-label="Remove ${esc(model)}">✕</button>`:''}</div>`;
-  const group=(label,rows)=>`<section class="model-group"><div class="grp">${label}</div>${rows}</section>`;
-  const providers=Object.entries(S.providers).map(([provider,data])=>group(ico(provider)+esc(data.name)+(data.trial?' <span class="pill">Trial credit</span>':'')+(hasKey(provider)?'':' <span class="pill">No key</span>'),data.models.map(model=>row(provider,model,false)).join(''))).join('');
-  const custom=S.custom.length?group('Custom models',S.custom.map(({provider,model})=>row(provider,model,true)).join('')):'';
   $('#model-body').innerHTML=`<div class="search-line"><svg aria-hidden="true" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8.5" cy="8.5" r="4.75"/><path d="m12 12 4 4"/></svg><input id="model-search" type="search" aria-label="Search models or providers" placeholder="Search models or providers" autocomplete="off"></div>
-    <p id="model-results" class="meta" role="status"></p>${modelLegacy(current.provider,current.model)?`<p class="model-notice">Your selected preset, <strong>${esc(current.model)}</strong>, is from an older catalog. Pick a current model below if needed. No model was switched automatically.</p>`:''}${providers}${custom}
-    <details class="model-custom"><summary>Add a custom model</summary><div class="model-custom-fields"><select id="cp" aria-label="Provider">${Object.entries(S.providers).map(([p,v])=>`<option value="${p}" ${p===current.provider?'selected':''}>${esc(v.name)}</option>`).join('')}</select><input type="text" id="cm" aria-label="Model ID" placeholder="Model ID" autocomplete="off" spellcheck="false"><button id="cu">Add</button></div></details>`;
-  $('#model-search').value=query;
-  filterModelList();
+    <div class="model-controls"><select id="model-provider" aria-label="Filter by provider"></select><details class="model-custom" id="model-custom"><summary>Add a custom model</summary><div class="model-custom-fields"><select id="cp" aria-label="Provider">${Object.entries(S.providers).map(([p,v])=>`<option value="${p}" ${p===current.provider?'selected':''}>${esc(v.name)}</option>`).join('')}</select><input type="text" id="cm" aria-label="Model ID" placeholder="Model ID" autocomplete="off" spellcheck="false"><button id="cu">Add</button></div></details></div>
+    <p id="model-free-note" class="meta" hidden>Free API options by provider. Your key, account plan and the provider’s limits still apply.</p><p id="model-results" class="meta" role="status"></p>
+    ${modelLegacy(current.provider,current.model)?`<p class="model-notice">Your selected model, <strong>${esc(current.model)}</strong>, is from an older catalog. You can switch models here.</p>`:''}
+    <div id="model-list"></div>`;
+  setModelSection('all');
 }
-function filterModelList(){
+function setModelSection(section){
+  modelSection=section;
+  const freeOnly=section==='free';
+  $('#model-sections').querySelectorAll('button').forEach(btn=>btn.setAttribute('aria-pressed',String(btn.dataset.modelSection===section)));
+  const providers=Object.entries(S.providers).filter(([,data])=>!freeOnly||data.free?.length);
+  $('#model-provider').innerHTML='<option value="">All providers</option>'+providers.map(([p,v])=>`<option value="${p}">${esc(v.name)}</option>`).join('');
+  $('#model-provider').value=providers.some(([p])=>p===modelProvider)?modelProvider:'';
+  $('#model-custom').hidden=freeOnly;
+  $('#model-free-note').hidden=!freeOnly;
+  renderModelList();
+}
+function renderModelList(){
+  const current=S.settings,freeOnly=modelSection==='free';
+  const providerFilter=$('#model-provider').value;
   const query=$('#model-search').value.trim().toLowerCase();
+  const terms=query.split(/\s+/).filter(Boolean);
   let count=0;
-  for(const group of $('#model-body').querySelectorAll('.model-group')){
-    let groupCount=0;
-    for(const row of group.querySelectorAll('.orow')){
-      const option=row.querySelector('.opt');
-      const candidate=option.dataset.m+' '+S.providers[option.dataset.p].name+(modelFree(option.dataset.p,option.dataset.m)?' free tier':'');
-      row.hidden=!candidate.toLowerCase().includes(query);
-      if(!row.hidden)groupCount++;
-    }
-    group.hidden=groupCount===0;count+=groupCount;
+  const groups=[];
+  const row=(provider,model,custom=false)=>{
+    const data=S.providers[provider],free=modelFree(provider,model);
+    const candidate=(model+' '+data.name+(free?' free tier':'')).toLowerCase();
+    if((providerFilter&&provider!==providerFilter)||terms.some(term=>!candidate.includes(term)))return '';
+    count++;
+    return `<div class="orow"><button class="opt" aria-pressed="${current.provider===provider&&current.model===model}" data-p="${provider}" data-m="${esc(model)}"><span class="n">${esc(model)}</span>${free?'<span class="pill model-free">Free</span>':''}${custom?`<span class="pill">${esc(data.name)}</span>`:''}</button>${custom?`<button class="x" data-rm="${provider}" data-m="${esc(model)}" aria-label="Remove ${esc(model)}">✕</button>`:''}</div>`;
+  };
+  for(const [provider,data] of Object.entries(S.providers)){
+    const ids=freeOnly?(data.free||[]):data.models;
+    const rows=ids.map(model=>row(provider,model)).join('');
+    if(rows)groups.push(`<section class="model-group"><div class="grp">${ico(provider)}${esc(data.name)}${data.trial?' <span class="pill">Trial credit</span>':''}${freeOnly&&data.billing?' <span class="pill">Billing account</span>':''}${hasKey(provider)?'':' <span class="pill">No key</span>'}${freeOnly&&data.docs?` <a class="provider-doc" href="${esc(data.docs)}" target="_blank" rel="noopener">Free access details</a>`:''}</div>${rows}</section>`);
   }
-  $('#model-results').textContent=query?(count?count+' matching '+(count===1?'model':'models'):'No matching models. You can add a custom model below.'):'';
+  if(!freeOnly){
+    const rows=S.custom.map(({provider,model})=>row(provider,model,true)).join('');
+    if(rows)groups.push(`<section class="model-group"><div class="grp">Custom models</div>${rows}</section>`);
+  }
+  $('#model-list').innerHTML=groups.join('');
+  $('#model-results').textContent=count?`${count} ${freeOnly?'free ':''}${count===1?'model':'models'}`:`No ${freeOnly?'free ':''}models match your search.`;
+}
+function loadRouterCatalog(){
+  if(routerCatalogPromise)return routerCatalogPromise;
+  const session=S;
+  routerCatalogPromise=api('model_catalog').then(data=>{
+    if(S!==session||!data.catalog)return;
+    const router=S.providers.openrouter;
+    const live=new Set(data.catalog.models);
+    const featured=router.models.filter(id=>id==='openrouter/free'||live.has(id));
+    router.models=[...new Set([...featured,...live])];
+    router.free=[...new Set(['openrouter/free',...data.catalog.free])];
+    if($('#mm').open&&!$('#model-list').contains(document.activeElement))renderModelList();
+  }).catch(()=>{});
+  return routerCatalogPromise;
 }
 function pick(p,m){if(!S.providers[p]||!/^[\w.@:\/-]{1,100}$/.test(m))return;S.settings.provider=p;S.settings.model=m;applyThinking();renderModel();saveSettings();$('#mm').close()}
 async function addCustom(){const m=$('#cm').value.trim(),p=$('#cp').value;if(!/^[\w.@:\/-]{1,100}$/.test(m)){$('#cm').focus();return}
   if(!S.providers[p].models.includes(m)&&!S.custom.some(c=>c.provider===p&&c.model===m)){try{await api('cmadd',{provider:p,model:m});S.custom.push({provider:p,model:m})}catch(x){alert(x.message);return}}
   pick(p,m)}
 $('#mm').onclick=async e=>{const rm=e.target.closest('[data-rm]');
-  if(rm){e.stopPropagation();const p=rm.dataset.rm,m=rm.dataset.m;try{await api('cmdel',{provider:p,model:m})}catch{}S.custom=S.custom.filter(c=>!(c.provider===p&&c.model===m));renderMenu($('#model-search').value);$('#model-search').focus();return}
+  if(rm){e.stopPropagation();const p=rm.dataset.rm,m=rm.dataset.m;try{await api('cmdel',{provider:p,model:m})}catch{}S.custom=S.custom.filter(c=>!(c.provider===p&&c.model===m));renderModelList();$('#model-search').focus();return}
   const o=e.target.closest('.opt');if(o){pick(o.dataset.p,o.dataset.m);return}
   if(e.target.id==='cu')addCustom()};
 $('#mm').oninput=e=>{
-  if(e.target.id==='model-search')filterModelList();
+  if(e.target.id==='model-search')renderModelList();
+  if(e.target.id==='model-provider'){modelProvider=e.target.value;renderModelList();}
   if(e.target.id==='cp')e.target.dataset.chosen='1';
   if(e.target.id==='cm'&&!$('#cp').dataset.chosen){
     const model=e.target.value.trim(),active=S.settings.provider;
@@ -3440,9 +3536,12 @@ $('#mm').oninput=e=>{
 };
 $('#mm').onkeydown=e=>{if(e.key==='Enter'&&e.target.id==='cm'){e.preventDefault();addCustom()}};
 const modelDialog=$('#mm'),promptDialog=$('#prompt-dlg'),responseDialog=$('#response-dlg');
+$('#model-sections').onclick=e=>{const section=e.target.closest('[data-model-section]');if(section){setModelSection(section.dataset.modelSection);$('#model-body').scrollTop=0}};
 $('#mb').onclick=()=>{
+  modelProvider='';
   renderMenu();
   showSettingsDialog(modelDialog);
+  loadRouterCatalog();
   $('#model-body').scrollTop=0;
   $('#mb').setAttribute('aria-expanded','true');
   if(matchMedia('(hover:hover) and (pointer:fine)').matches)$('#model-search').focus({preventScroll:true});
