@@ -252,6 +252,9 @@ if(isset($_GET['a'])){
         if($action==='deploy')out(['site'=>host_deploy($uid,$slug,(string)($in['title']??''),(array)($in['files']??[]),!empty($in['replace']))]);
         $site=q('SELECT slug,title FROM hosted_sites WHERE slug=? AND user_id=?',[$slug,$uid])->fetch();
         host_require((bool)$site,'Website not found.',404);
+        if($action==='analytics'){
+            out(['views'=>q('SELECT day,views FROM hosted_views WHERE slug=? AND day>=? ORDER BY day DESC',[$slug,gmdate('Y-m-d',time()-30*86400)])->fetchAll()]);
+        }
         if($action==='open'){
             $site['files']=host_site_files($slug);
             $site['views']=q('SELECT day,views FROM hosted_views WHERE slug=? AND day>=? ORDER BY day DESC',[$slug,gmdate('Y-m-d',time()-30*86400)])->fetchAll();
@@ -278,6 +281,60 @@ $account=isset($_SESSION['uid'])?q('SELECT username FROM users WHERE id=?',[(int
 :root[data-theme=light]{color-scheme:light;--bg:#edf4ff;--surface:#fcfdff;--mut:#465975;--fg:#182840;--line:#bacce3;--accent:#224fae;--on:#fff}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 72% 0%,#4c79b327,transparent 55%),var(--bg);color:var(--fg);font:15px/1.5 system-ui}
 a{color:var(--accent)}button,input,textarea,select{font:inherit;color:inherit}button,input,textarea,select{border:1px solid var(--line);border-radius:5px;background:var(--surface);padding:8px 10px}button{cursor:pointer}button:disabled{opacity:.5;cursor:wait}button.primary{background:var(--accent);border-color:var(--accent);color:var(--on);font-weight:650}:focus-visible{outline:2px solid var(--accent);outline-offset:2px}label{display:grid;gap:5px;margin:0}header{border-bottom:1px solid var(--line);background:var(--surface);padding:12px clamp(14px,4vw,42px);display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}header nav{display:flex;gap:10px;align-items:center;flex-wrap:wrap}header strong{font-size:18px}main{max-width:1320px;margin:auto;padding:22px clamp(14px,4vw,42px)}h1{margin:0 0 6px;font-size:clamp(25px,5vw,38px);letter-spacing:-.04em}h2{font-size:16px;margin:0 0 10px}.note,small{color:var(--mut)}p{margin:0 0 10px}.layout{display:grid;grid-template-columns:240px minmax(0,1fr);gap:14px;margin-top:20px}.panel{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:14px;min-width:0}.toolbar,.meta-fields{display:flex;flex-wrap:wrap;gap:8px;align-items:end;margin-bottom:10px}.meta-fields label{flex:1;min-width:145px}.meta-fields input{width:100%}.work{display:grid;grid-template-columns:140px minmax(0,1fr);gap:10px}.files,.sites{display:grid;align-content:start;gap:5px;overflow:auto;max-height:420px}.file,.site{text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.file[aria-pressed=true],.site[aria-pressed=true]{border-color:var(--accent);color:var(--accent)}textarea#code{width:100%;resize:vertical;min-height:320px;background:var(--bg);font:14px/1.6 ui-monospace,monospace;tab-size:2}iframe{width:100%;min-height:360px;background:white;border:1px solid var(--line);border-radius:5px}.auth{max-width:430px;margin:24px auto}.auth form{display:grid;gap:10px}.status{min-height:24px;margin:5px 0}.stat{border-top:1px solid var(--line);padding-top:8px;margin-top:10px}.stat table{width:100%;font-size:13px}.stat td:last-child{text-align:right}dialog{width:min(800px,calc(100vw - 24px));max-height:calc(100dvh - 24px);color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px}dialog::backdrop{background:#0009}dialog .toolbar{justify-content:space-between}dialog iframe{height:65dvh}details{margin-top:8px}summary{cursor:pointer}.hidden,[hidden]{display:none!important}@media(max-width:760px){.layout{grid-template-columns:1fr}.sites{grid-template-columns:repeat(2,minmax(0,1fr));max-height:160px}}@media(max-width:480px){.work{grid-template-columns:1fr}.files{grid-template-columns:repeat(2,minmax(0,1fr));max-height:130px}textarea#code{min-height:240px}}
+
+body>header{height:auto;min-height:58px;background:var(--surface);position:relative;z-index:1}
+body>header nav{gap:12px}body>header nav a{text-decoration:none;font-size:13px}
+body>header nav span{color:var(--mut);font-size:13px}
+.host-layout{display:grid;grid-template-columns:minmax(190px,230px) minmax(0,1fr);gap:22px;min-height:460px}
+.site-rail{align-self:start;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.rail-heading,.files-heading{display:flex;align-items:center;justify-content:space-between;gap:7px;padding:10px 12px;border-bottom:1px solid var(--line)}
+.rail-heading h2,.files-heading h2{margin:0;font-size:13px}.rail-heading button,.files-heading button{font-size:12px;padding:5px 8px}
+.site-rail .sites{padding:6px;display:grid;gap:4px;max-height:65dvh}
+.site-rail .site{display:grid;gap:1px;border:1px solid transparent;background:transparent;padding:8px 9px;min-width:0}
+.site-rail .site[aria-pressed=true],.site-rail .site:hover{border-color:var(--line);background:var(--bg)}
+.site-rail .site strong,.site-rail .site small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rail-empty{padding:5px 7px;margin:0;font-size:13px}
+.host-main{min-width:0}
+.welcome{border:1px solid var(--line);border-radius:9px;background:var(--surface);padding:clamp(24px,6vw,65px);min-height:300px;display:grid;align-content:center;justify-items:start}
+.welcome .overline{letter-spacing:.13em;text-transform:uppercase;color:var(--accent);font-size:11px;font-weight:650;margin:0 0 9px}
+.welcome .note{margin:4px 0 18px}
+.project{border:1px solid var(--line);background:var(--surface);border-radius:9px;min-width:0}
+.project-heading{padding:14px 16px;display:flex;align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap}
+.project-heading h1{font-size:clamp(21px,4vw,32px);margin:4px 0 2px;overflow-wrap:anywhere}
+.project-state{font-size:11px;font-weight:650;color:var(--accent);text-transform:uppercase;letter-spacing:.06em}
+.project-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.project-actions a,.project-actions button{font-size:13px}
+.project-actions a{padding:7px 9px;border:1px solid var(--line);border-radius:5px;text-decoration:none}
+.site-more{position:relative;margin:0}.site-more summary{padding:7px;border:1px solid var(--line);border-radius:5px;font-size:13px}
+.site-more button{position:absolute;right:0;top:calc(100% + 5px);white-space:nowrap;z-index:2;color:#fa818d}
+:root[data-theme=light] .site-more button{color:#a82e43}
+.project-tabs{display:flex;gap:4px;padding:0 13px;border-block:1px solid var(--line);min-width:0}
+.project-tabs button{background:transparent;border:0;border-bottom:2px solid transparent;border-radius:0;padding:9px 10px;font-size:13px}
+.project-tabs button[aria-pressed=true]{color:var(--accent);border-bottom-color:var(--accent);font-weight:650}
+.view-panel{min-width:0}.work{grid-template-columns:minmax(135px,175px) minmax(0,1fr);gap:0}
+.project-files{min-width:0;border-right:1px solid var(--line)}
+.project-files .files{padding:6px;gap:3px;max-height:300px}
+.project-files .file{border:1px solid transparent;background:transparent;font:12px ui-monospace,monospace;min-height:32px;padding:6px}
+.project-files .file[aria-pressed=true],.project-files .file:hover{border-color:var(--line);background:var(--bg)}
+.file-upload{padding:0 10px 9px;font-size:12px}.file-upload>div{display:grid;gap:4px;padding-top:6px}.file-upload button{padding:5px}
+.source-pane{min-width:0}.source-heading{display:flex;align-items:center;justify-content:space-between;gap:5px;padding:5px 9px}
+.source-heading label{font:12px ui-monospace,monospace;overflow-wrap:anywhere;color:var(--mut)}
+#remove{font-size:11px;padding:5px 7px;white-space:nowrap}
+textarea#code{display:block;border:0;border-top:1px solid var(--line);border-radius:0;min-height:clamp(320px,55dvh,600px);padding:12px}
+textarea#code:focus-visible{outline-offset:-2px}#binary{padding:10px}
+.preview-panel,.analytics-panel{padding:12px}
+.preview-toolbar,.analytics-title{display:flex;justify-content:space-between;align-items:flex-end;gap:8px;margin-bottom:10px}
+.preview-toolbar label{font-size:12px}.preview-toolbar select{min-width:130px}
+.preview-panel iframe{display:block;height:56dvh;min-height:280px}
+.analytics-title{align-items:flex-start}.analytics-title h2{margin:0 0 3px}.analytics-title p{font-size:13px}
+.analytics-total{border-bottom:1px solid var(--line);padding:4px 0 9px;margin-bottom:9px}.analytics-total strong{font-size:26px}
+#analytics table{width:100%;text-align:left;border-collapse:collapse;font-size:13px}#analytics th,#analytics td{border-bottom:1px solid var(--line);padding:5px 4px}#analytics tr>*:last-child{text-align:right}
+.status:empty{min-height:0;margin:0}.host-footer{margin-top:12px;font-size:12px}
+dialog{width:min(430px,calc(100vw - 24px));padding:14px}.dialog-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}.dialog-heading h2{margin:0}.dialog-heading button{padding:5px 8px}
+#publish-form,#add-form,.new-choices{display:grid;gap:10px}.new-choices button{display:grid;text-align:left;gap:4px}.new-choices small{display:block}
+@media(max-width:760px){.host-layout{grid-template-columns:1fr;gap:12px}.site-rail .sites{grid-template-columns:repeat(2,minmax(0,1fr));max-height:120px}.site-rail .sites:has(.rail-empty){grid-template-columns:1fr}}
+@media(max-width:500px){.work{grid-template-columns:1fr}.project-files{border-right:0;border-bottom:1px solid var(--line)}.project-files .files{grid-template-columns:repeat(2,minmax(0,1fr));max-height:100px}.file-upload>div{display:flex;flex-wrap:wrap}.project-heading{padding:10px}.project-heading h1{margin:2px 0}.preview-panel iframe{height:49dvh}}
+
 </style>
 </head>
 <body>
@@ -288,18 +345,78 @@ a{color:var(--accent)}button,input,textarea,select{font:inherit;color:inherit}bu
 <div class="toolbar"><button id="login-tab">Sign in</button><button id="signup-tab">Create account</button></div>
 <form id="auth"><label id="email-label" hidden>Email<input type="email" id="email" autocomplete="email"></label><label><span id="login-label">Email or username</span><input id="login" autocomplete="username" required></label><label>Password<input type="password" id="password" autocomplete="current-password" required></label><p class="status" id="auth-status" role="status"></p><button class="primary" id="auth-submit">Sign in</button></form></section>
 <?php else: ?>
-<h1>Website workspace</h1><p class="note">Build, preview, and publish a project to a public address.</p>
-<div class="layout">
-<aside class="panel"><div class="toolbar"><h2 style="margin:0;flex:1">Your sites</h2><button id="new">New HTML</button><button id="new-php">New PHP</button></div><div id="sites" class="sites"></div><section id="analytics" class="stat" hidden></section></aside>
-<section class="panel">
-<div class="meta-fields"><label>Site address<input id="slug" maxlength="48" placeholder="dinosaurs" spellcheck="false"></label><label>Site title<input id="title" maxlength="90" placeholder="Dinosaur park"></label></div>
-<div class="toolbar"><button id="add">Add file</button><button id="upload">Upload files</button><button id="folder">Upload folder</button><input id="upload-input" type="file" multiple hidden><input id="folder-input" type="file" multiple webkitdirectory hidden><button id="preview">Preview</button><button id="deploy" class="primary">Publish</button><a id="visit" target="_blank" rel="noopener" hidden>Visit site</a><button id="delete" hidden>Delete site</button></div>
-<div class="work"><div><h2>Files</h2><div id="files" class="files"></div><button id="remove" style="margin-top:8px">Remove file</button></div><div><label id="edit-label" for="code">Source</label><textarea id="code" spellcheck="false" autocomplete="off" autocapitalize="none"></textarea><p id="binary" class="note" hidden>Binary file. Replace it by uploading it again.</p></div></div>
-<p id="status" class="status" role="status"></p>
-<details><summary>Limits and PHP behavior</summary><p class="note">Up to 60 files, 768 KiB per file, 3 MiB per site, 12 sites and 12 MiB per account. Up to 10 publishes or updates in 10 minutes. PHP runs in a visitor’s browser with a virtual file system and GET parameters. PHP source is sent to visitors, so keep secrets out of published files. Server sessions, server databases, and background PHP services are unavailable on hosted sites.</p></details>
-</section></div>
-<dialog id="preview-dialog"><div class="toolbar"><strong>Local preview</strong><label>Entry<select id="preview-entry"></select></label><button id="close-preview">Close</button></div><iframe id="preview-frame" title="Website preview" sandbox="allow-scripts allow-forms"></iframe></dialog>
-<dialog id="file-dialog"><form id="add-form"><label>File path<input id="file-name" placeholder="assets/style.css" required maxlength="180"></label><div class="toolbar" style="margin-top:10px"><button class="primary">Add file</button><button type="button" id="cancel-file">Cancel</button></div><p class="status" id="file-status" role="status"></p></form></dialog>
+<div class="host-layout">
+  <aside class="site-rail" aria-label="Your websites">
+    <div class="rail-heading"><h2>Your sites</h2><button id="site-new" type="button" aria-haspopup="dialog">+ New</button></div>
+    <div id="sites" class="sites"></div>
+  </aside>
+  <section class="host-main">
+    <div id="welcome" class="welcome">
+      <h1>Website workspace</h1>
+      <p class="note">Open one of your sites, or start a new project.</p>
+      <button id="welcome-new" class="primary" type="button">New website</button>
+    </div>
+    <section id="project" class="project" hidden>
+      <div class="project-heading">
+        <div>
+          <span id="project-state" class="project-state">Draft</span>
+          <h1 id="project-title">Untitled website</h1>
+          <span id="project-path" class="note"></span>
+        </div>
+        <div class="project-actions">
+          <a id="visit" target="_blank" rel="noopener" hidden>Visit site ↗</a>
+          <button id="deploy" class="primary" type="button">Publish</button>
+          <details id="site-more" class="site-more" hidden><summary aria-label="Site options">More</summary><button id="delete" type="button">Delete site</button></details>
+        </div>
+      </div>
+      <nav class="project-tabs" aria-label="Project views">
+        <button id="view-files" type="button" data-view="files" aria-pressed="true">Files</button>
+        <button id="preview" type="button" data-view="preview" aria-pressed="false">Preview</button>
+        <button id="view-analytics" type="button" data-view="analytics" aria-pressed="false">Analytics</button>
+      </nav>
+      <div id="panel-files" class="view-panel">
+        <div class="work">
+          <aside class="project-files" aria-label="Project files">
+            <div class="files-heading"><h2>Project files</h2><button id="add" type="button" title="Add file">+ Add</button></div>
+            <div id="files" class="files"></div>
+            <details class="file-upload"><summary>Upload files</summary><div><button id="upload" type="button">Choose files</button><button id="folder" type="button">Choose folder</button></div></details>
+            <input id="upload-input" type="file" multiple hidden><input id="folder-input" type="file" multiple webkitdirectory hidden>
+          </aside>
+          <div class="source-pane">
+            <div class="source-heading"><label id="edit-label" for="code">Source</label><button id="remove" type="button">Remove file</button></div>
+            <textarea id="code" spellcheck="false" autocomplete="off" autocapitalize="none"></textarea>
+            <p id="binary" class="note" hidden>Binary file. Replace it by uploading it again.</p>
+          </div>
+        </div>
+      </div>
+      <div id="panel-preview" class="view-panel preview-panel" hidden>
+        <div class="preview-toolbar"><label>Entry file<select id="preview-entry"></select></label><button id="refresh-preview" type="button">Refresh</button></div>
+        <div id="preview-slot"></div>
+      </div>
+      <section id="panel-analytics" class="view-panel analytics-panel" hidden>
+        <div class="analytics-title"><div><h2>Page views</h2><p class="note">Published traffic in the last 30 days (UTC).</p></div><button id="refresh-analytics" type="button">Refresh</button></div>
+        <div id="analytics"></div>
+      </section>
+    </section>
+    <p id="status" class="status" role="status"></p>
+  </section>
+</div>
+<footer class="host-footer"><details><summary>Limits and PHP behavior</summary><p class="note">Up to 60 files, 768 KiB per file, 3 MiB per site, 12 sites and 12 MiB per account. Up to 10 publishes or updates in 10 minutes. PHP runs in the visitor’s browser. Its source is sent to visitors, so keep secrets out of published files. Server sessions and databases are unavailable on hosted sites.</p></details></footer>
+<dialog id="new-dialog" aria-labelledby="new-title">
+  <div class="dialog-heading"><h2 id="new-title">New website</h2><button type="button" data-close="new-dialog" aria-label="Close">✕</button></div>
+  <div class="new-choices"><button id="new" type="button"><strong>HTML website</strong><small>Start with an HTML page and add CSS, JavaScript, or assets.</small></button><button id="new-php" type="button"><strong>PHP website</strong><small>Start with an index.php that runs in the browser.</small></button></div>
+</dialog>
+<dialog id="publish-dialog" aria-labelledby="publish-title">
+  <div class="dialog-heading"><h2 id="publish-title">Publish website</h2><button type="button" data-close="publish-dialog" aria-label="Close">✕</button></div>
+  <form id="publish-form">
+    <label>Site address<input id="slug" maxlength="48" placeholder="dinosaurs" spellcheck="false" required></label>
+    <label>Site title<input id="title" maxlength="90" placeholder="Dinosaur park"></label>
+    <p class="note">Published files will be available publicly at this address.</p>
+    <p id="publish-status" class="status" role="status"></p>
+    <button id="publish-confirm" class="primary" type="submit">Publish website</button>
+  </form>
+</dialog>
+<dialog id="file-dialog" aria-labelledby="file-title"><div class="dialog-heading"><h2 id="file-title">Add a file</h2><button type="button" id="cancel-file" aria-label="Close">✕</button></div><form id="add-form"><label>File path<input id="file-name" placeholder="assets/style.css" required maxlength="180"></label><p class="status" id="file-status" role="status"></p><button class="primary">Add file</button></form></dialog>
 <?php endif ?>
 </main>
 <script>
@@ -327,7 +444,7 @@ if(!signedIn){
     catch(err){$('#auth-status').textContent=err.message}finally{$('#auth-submit').disabled=false}
   };
 }else{
-  let current='',active='',files=Object.create(null),dates=[];
+  let current='',active='',files=Object.create(null),dates=[],dirty=false,loadId=0;
   const editor=$('#code'),status=$('#status'),decoder=new TextDecoder(),encoder=new TextEncoder();
   const textFile=name=>/\.(html?|css|m?js|php|txt|md|json|webmanifest|svg)$/i.test(name);
   const type=name=>({html:'text/html',htm:'text/html',css:'text/css',js:'text/javascript',mjs:'text/javascript',svg:'image/svg+xml',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',gif:'image/gif',woff2:'font/woff2',woff:'font/woff',mp3:'audio/mpeg',mp4:'video/mp4',json:'application/json'})[name.split('.').pop().toLowerCase()]||'application/octet-stream';
@@ -342,40 +459,83 @@ if(!signedIn){
     $('#edit-label').textContent=name||'Source';editor.hidden=Boolean(name&&!text);$('#binary').hidden=!(name&&!text);editor.disabled=!text;editor.value=text?decode(files[name].base64):'';
     $('#remove').disabled=!name;
   }
-  function showState(){
-    $('#deploy').textContent=current?'Update site':'Publish';$('#slug').readOnly=!!current;
-    $('#visit').hidden=!current;$('#visit').href=current?'/'+current+'/':'#';$('#delete').hidden=!current;
-    const a=$('#analytics');a.hidden=!current;
-    if(current){const rows=dates.map(({day,views})=>`<tr><td>${esc(day)}</td><td>${Number(views)}</td></tr>`).join('');
-      a.innerHTML='<h2>Page views · last 30 days</h2>'+(rows?'<table><thead><tr><td>Date (UTC)</td><td>Views</td></tr></thead><tbody>'+rows+'</tbody></table>':'<p class="note">No visits recorded.</p>');}
+  function showAnalytics(){
+    const a=$('#analytics');
+    if(!current){a.innerHTML='<p class="note">Publish this website to start recording page views.</p>';return}
+    const total=dates.reduce((sum,item)=>sum+Number(item.views),0);
+    const rows=dates.map(({day,views})=>`<tr><td>${esc(day)}</td><td>${Number(views)}</td></tr>`).join('');
+    a.innerHTML=`<div class="analytics-total"><strong>${total.toLocaleString()}</strong> <span class="note">page views</span></div>`+(rows?'<table><thead><tr><th scope="col">Date (UTC)</th><th scope="col">Views</th></tr></thead><tbody>'+rows+'</tbody></table>':'<p class="note">No visits recorded yet.</p>');
   }
+  function showState(){
+    $('#deploy').textContent=current?'Publish changes':'Publish';$('#slug').readOnly=!!current;
+    $('#project-title').textContent=$('#title').value.trim()||current||'Untitled website';
+    $('#project-state').textContent=current?(dirty?'Unpublished changes':'Published'):'Draft';
+    $('#project-path').textContent=current?'/'+current+'/':'';
+    $('#visit').hidden=!current;$('#visit').href=current?'/'+current+'/':'#';$('#site-more').hidden=!current;
+    $('#refresh-analytics').disabled=!current;
+    showAnalytics();
+  }
+  function showProject(next='files'){
+    $('#welcome').hidden=true;$('#project').hidden=false;setView(next);
+  }
+  function setView(next){
+    for(const name of ['files','preview','analytics']){
+      $('#panel-'+name).hidden=name!==next;
+      document.querySelector('[data-view="'+name+'"]').setAttribute('aria-pressed',name===next);
+    }
+    if(next==='preview')setupPreview();
+    else $('#preview-slot').replaceChildren();
+    if(next==='analytics')showAnalytics();
+  }
+  function change(){dirty=true;showState()}
+  function allowSwitch(){return !dirty||confirm('Switch projects? Unpublished changes will be lost.')}
   async function list(){
-    try{const {sites}=await host('sites');$('#sites').innerHTML=sites.map(s=>`<button class="site" data-site="${esc(s.slug)}" aria-pressed="${s.slug===current}">${esc(s.title)} <small>· ${Number(s.views)} views</small></button>`).join('')||'<p class="note">No published sites.</p>'}
+    try{const {sites}=await host('sites');$('#sites').innerHTML=sites.map(s=>`<button class="site" data-site="${esc(s.slug)}" aria-pressed="${s.slug===current}"><strong>${esc(s.title)}</strong><small>/${esc(s.slug)}/</small></button>`).join('')||'<p class="note rail-empty">No published sites.</p>'}
     catch(error){status.textContent=error.message}
   }
   async function open(slug){
     status.textContent='';
-    try{const {site}=await host('open',{slug});current=site.slug;files=Object.assign(Object.create(null),site.files);dates=site.views;$('#slug').value=site.slug;$('#title').value=site.title;select(files['index.html']?'index.html':Object.keys(files)[0]);showState();await list()}
-    catch(error){status.textContent=error.message}
+    const id=++loadId;
+    try{
+      const {site}=await host('open',{slug});
+      if(id!==loadId)return;
+      current=site.slug;files=Object.assign(Object.create(null),site.files);dates=site.views;
+      $('#slug').value=site.slug;$('#title').value=site.title;dirty=false;
+      select(files['index.html']?'index.html':Object.keys(files)[0]);showState();showProject();await list();
+    }catch(error){if(id===loadId)status.textContent=error.message}
+  }
+  async function refreshAnalytics(){
+    if(!current)return;
+    const slug=current,button=$('#refresh-analytics');button.disabled=true;
+    try{const {views}=await host('analytics',{slug});if(current===slug){dates=views;showAnalytics()}}
+    catch(err){status.textContent=err.message}finally{button.disabled=!current}
   }
   function fresh(php=false){
-    current='';files=Object.create(null);dates=[];$('#slug').value='';$('#title').value='';
+    loadId++;current='';files=Object.create(null);dates=[];dirty=false;$('#slug').value='';$('#title').value='';
     const name=php?'index.php':'index.html';
     setFile(name,php?'<'+'?php\ndeclare(strict_types=1);\n$name = $_GET["name"] ?? "world";\necho "<h1>Hello, " . htmlspecialchars($name, ENT_QUOTES, \'UTF-8\') . "!</h1>";\n':'<!doctype html>\n<html lang="en">\n<head>\n  <meta charset="utf-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1">\n  <title>Home</title>\n</head>\n<body>\n  <h1>My website</h1>\n</body>\n</html>');
-    select(name);showState();status.textContent='';list();
+    select(name);showState();showProject();status.textContent='';list();
   }
-  editor.oninput=()=>{if(active)setFile(active,editor.value)};
-  $('#sites').onclick=e=>{const item=e.target.closest('[data-site]');if(item)open(item.dataset.site)};
+  editor.oninput=()=>{if(active){setFile(active,editor.value);change()}};
+  $('#sites').onclick=e=>{const item=e.target.closest('[data-site]');if(item&&allowSwitch())open(item.dataset.site)};
   $('#files').onclick=e=>{const item=e.target.closest('[data-file]');if(item)select(item.dataset.file)};
-  $('#new').onclick=()=>fresh();$('#new-php').onclick=()=>fresh(true);
+  function openNew(){if(allowSwitch())$('#new-dialog').showModal()}
+  $('#site-new').onclick=$('#welcome-new').onclick=openNew;
+  $('#new').onclick=()=>{$('#new-dialog').close();fresh()};
+  $('#new-php').onclick=()=>{$('#new-dialog').close();fresh(true)};
+  for(const button of document.querySelectorAll('[data-close]'))button.onclick=()=>$('#'+button.dataset.close).close();
+  for(const button of document.querySelectorAll('[data-view]'))button.onclick=()=>setView(button.dataset.view);
+  $('#refresh-analytics').onclick=refreshAnalytics;
+  window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});
+
   $('#add').onclick=()=>{$('#file-name').value='';$('#file-status').textContent='';$('#file-dialog').showModal()};
   $('#cancel-file').onclick=()=>$('#file-dialog').close();
   $('#add-form').onsubmit=e=>{
     e.preventDefault();const name=$('#file-name').value.trim();
     if(!validPath(name)||files[name]||Object.keys(files).length>=60){$('#file-status').textContent='Use a supported, unique path and keep the project under 60 files.';return}
-    setFile(name,name.endsWith('.php')?'<'+'?php echo "Hello from PHP";':'');select(name);$('#file-dialog').close();editor.focus();
+    setFile(name,name.endsWith('.php')?'<'+'?php echo "Hello from PHP";':'');select(name);change();$('#file-dialog').close();editor.focus();
   };
-  $('#remove').onclick=()=>{if(active){delete files[active];select(Object.keys(files)[0]||'')}};
+  $('#remove').onclick=()=>{if(active){delete files[active];select(Object.keys(files)[0]||'');change()}};
   async function addFiles(input,folder){
     let last='',errors=0;
     for(const file of input.files){
@@ -384,19 +544,31 @@ if(!signedIn){
       files[name]={base64:encode(new Uint8Array(await file.arrayBuffer()))};last=name;
     }
     input.value='';
-    if(last)select(last);status.textContent=errors?errors+' file(s) skipped because of file type, path, count, or size limits.':'Files added.';
+    if(last){select(last);change()}status.textContent=errors?errors+' file(s) skipped because of file type, path, count, or size limits.':'Files added.';
   }
   for(const [button,input,folder] of [['upload','upload-input',false],['folder','folder-input',true]]){
     $('#'+button).onclick=()=>$('#'+input).click();$('#'+input).onchange=e=>addFiles(e.target,folder).catch(err=>status.textContent=err.message);
   }
-  $('#deploy').onclick=async()=>{
-    const button=$('#deploy');button.disabled=true;status.textContent='Publishing…';
-    try{const {site}=await host('deploy',{slug:$('#slug').value,title:$('#title').value,files,replace:!!current});await open(site.slug);status.textContent='Published at '+site.url}
-    catch(error){status.textContent=error.message}finally{button.disabled=false}
+  $('#deploy').onclick=()=>{
+    $('#publish-status').textContent='';
+    $('#publish-title').textContent=current?'Publish changes':'Publish website';
+    $('#publish-confirm').textContent=current?'Publish changes':'Publish website';
+    $('#publish-dialog').showModal();
+  };
+  $('#publish-form').onsubmit=async e=>{
+    e.preventDefault();
+    const button=$('#publish-confirm'),notice=$('#publish-status');
+    button.disabled=true;notice.textContent='Publishing…';
+    try{
+      const {site}=await host('deploy',{slug:$('#slug').value,title:$('#title').value,files,replace:!!current});
+      dirty=false;$('#publish-dialog').close();
+      await open(site.slug);status.textContent='Published at '+site.url;
+    }catch(error){notice.textContent=error.message}
+    finally{button.disabled=false}
   };
   $('#delete').onclick=async()=>{
     if(!current||!confirm('Delete /'+current+'/? The public link will stop working.'))return;
-    try{await host('delete',{slug:current});fresh();status.textContent='Site deleted.'}catch(error){status.textContent=error.message}
+    try{await host('delete',{slug:current});current='';dirty=false;$('#project').hidden=true;$('#welcome').hidden=false;$('#preview-slot').replaceChildren();await list();status.textContent='Site deleted.'}catch(error){status.textContent=error.message}
   };
   $('#signout').onclick=async()=>{await call('/index.php?a=logout',{});location.reload()};
   function previewSource(html,entry,project=files){
@@ -436,19 +608,25 @@ if(!signedIn){
   }
   function paintPreview(){
     const name=$('#preview-entry').value;
-    try{$('#preview-frame').srcdoc=name.endsWith('.php')?phpPreview(name):previewSource(decode(files[name].base64),name)}
-    catch(err){$('#preview-frame').srcdoc='<p>'+esc(err.message)+'</p>'}
+    const frame=document.createElement('iframe');
+    frame.id='preview-frame';frame.title='Website preview';
+    frame.setAttribute('sandbox','allow-scripts allow-forms');
+    try{
+      frame.srcdoc=!name?'<p>Add an HTML or PHP file to preview.</p>':name.endsWith('.php')?phpPreview(name):previewSource(decode(files[name].base64),name);
+    }catch(err){frame.srcdoc='<p>'+esc(err.message)+'</p>'}
+    $('#preview-slot').replaceChildren(frame);
   }
-  $('#preview').onclick=()=>{
+  function setupPreview(){
     const entries=Object.keys(files).filter(p=>/\.(html?|php)$/i.test(p));
-    if(!entries.length){status.textContent='Add an HTML or PHP file to preview.';return}
-    $('#preview-entry').innerHTML=entries.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');
-    $('#preview-entry').value=entries.includes(active)?active:entries[0];paintPreview();$('#preview-dialog').showModal();
-  };
-  $('#preview-entry').onchange=paintPreview;
-  $('#close-preview').onclick=()=>$('#preview-dialog').close();
-  $('#preview-dialog').addEventListener('close',()=>{$('#preview-frame').srcdoc=''});
-  fresh();
+    const select=$('#preview-entry'),previous=select.value;
+    select.innerHTML=entries.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');
+    $('#refresh-preview').disabled=select.disabled=!entries.length;
+    if(!entries.length){paintPreview();return}
+    select.value=entries.includes(active)?active:entries.includes(previous)?previous:entries[0];
+    paintPreview();
+  }
+  $('#preview-entry').onchange=$('#refresh-preview').onclick=paintPreview;
+  list();
   const requested=new URLSearchParams(location.search).get('site');
   if(requested)open(requested);
 }

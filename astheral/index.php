@@ -1020,6 +1020,16 @@ main { overflow:hidden; }
 @media(prefers-reduced-motion:reduce){main::before{animation:none}}
 .widget-payload summary{cursor:pointer;color:var(--mut)}.widget-payload pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow:auto;margin:7px 0 0}
 .nav-host{display:flex;justify-content:space-between;align-items:center;min-height:36px;text-decoration:none;color:var(--fg);font-size:13px;padding:8px 12px}.nav-host:hover{background:var(--bg2)}#code-preview .db{padding:0}#code-preview{width:min(800px,calc(var(--visible-width,100vw) - 24px))}#code-preview-frame{display:block;width:100%;height:min(64dvh,calc(var(--visible-height,100dvh) - 86px));border:0;background:#fff}.ch{gap:4px}.ch>span{flex:1}
+
+#side{gap:8px}
+#side>.logo,#side>.rail-label,#side>.search-line,#side>#new,#side>.quick-nav{flex-shrink:0}
+#side #chats{flex:1 1 0;min-height:68px;overscroll-behavior:contain}
+#side .quick-nav{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1px;padding-top:6px;margin:0}
+.quick-nav>a,.quick-nav>button{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:3px;min-height:44px;padding:3px 1px;border:0;border-radius:5px;background:transparent;color:var(--mut);font:inherit;font-size:10px;line-height:1.1;text-decoration:none;white-space:nowrap;text-align:center}
+.quick-nav>a:hover,.quick-nav>button:hover{background:var(--accent-soft);color:var(--fg)}
+.quick-nav>button:focus-visible,.quick-nav>a:focus-visible{outline-offset:-2px}
+.visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+@media(max-height:430px){#side{gap:5px}#side .rail-label{display:none}#side>.logo{padding-bottom:2px}#side .search-line input{min-height:35px}#side #new{min-height:34px}.quick-nav>a,.quick-nav>button{min-height:42px}}
 </style>
 </head>
 <body>
@@ -1044,12 +1054,14 @@ main { overflow:hidden; }
     <div class="logo" style="margin:0"><svg class="wordmark-mark" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3.5 20 12 4l8.5 16M7 13.5h10"/></svg>Astheral</div>
     <button class="primary" id="new">New chat</button>
     <label class="rail-label" for="cs">Conversations</label><div class="search-line"><svg aria-hidden="true" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8.5" cy="8.5" r="4.75"/><path d="m12 12 4 4"/></svg><input type="search" id="cs" placeholder="Find a chat" aria-label="Search chats" autocomplete="off"></div><div id="chats"></div>
-    <div class="nav">
-      <a class="nav-host" href="/host.php">Astheral Host <span aria-hidden="true">↗</span></a><button id="b-conn">Connections</button>
-      <button id="b-use">Usage</button>
-      <button id="b-exp">Export chat (Markdown)</button>
-      <button id="b-out"><span id="who"></span> · Log out</button>
-    </div>
+    <nav class="nav quick-nav" aria-label="Workspace shortcuts">
+      <a href="/host.php" aria-label="Astheral Host" title="Astheral Host"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="12" rx="2"/><path d="M9 20h6m-3-3.5V20M3.5 8.5h17"/></svg><span>Host</span></a>
+      <button id="b-conn" type="button" aria-label="Connections" title="Connections"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="14" r="4"/><path d="m11 11 7-7m-2 2 3 3m-5-1 2 2"/></svg><span>Keys</span></button>
+      <button id="b-use" type="button" title="Usage"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16M7 17v-5m5 5V5m5 12V9"/></svg><span>Usage</span></button>
+      <button id="b-exp" type="button" aria-label="Export chat as Markdown" title="Export chat as Markdown"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m-4-4 4 4 4-4M5 16v4h14v-4"/></svg><span>Export</span></button>
+      <button id="b-out" type="button" title="Sign out"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 20H5V4h5m5 4 4 4-4 4m4-4H9"/></svg><span>Sign out</span></button>
+    </nav>
+    <span id="who" class="visually-hidden"></span>
   </aside>
   <button id="nav-scrim" class="hide" tabindex="-1" aria-label="Close conversations"></button>
   <main>
