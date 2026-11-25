@@ -529,7 +529,7 @@ main{flex:1;min-width:0;display:flex;flex-direction:column;position:relative}
 .chip{display:flex;gap:6px;flex-wrap:wrap;padding:0 4px}.chip span{background:var(--bg2);border-radius:8px;padding:2px 8px;font-size:12px;cursor:pointer}
 .send{width:42px;height:42px;border-radius:50%;padding:0;display:grid;place-items:center}.send:disabled{opacity:.4;cursor:not-allowed}
 .pop{position:absolute;bottom:calc(100% + 8px);left:0;background:var(--bg);border:1px solid var(--line);border-radius:16px;box-shadow:var(--sh);padding:8px;z-index:20}
-#mm{width:min(340px,92vw);max-height:60vh;overflow:auto}#sp{width:min(380px,92vw);left:auto;right:auto;margin-left:52px;max-height:70vh;overflow:auto}#o-len{border:1px solid var(--line);border-radius:12px;background:var(--bg);padding:6px 8px;min-height:36px}
+#mm{width:min(340px,92vw);max-height:60vh;overflow:auto}#o-len{border:1px solid var(--line);border-radius:12px;background:var(--bg);padding:6px 8px;min-height:36px}
 .grp{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);padding:8px 8px 4px;display:flex;align-items:center;gap:8px}
 .opt{display:flex;width:100%;align-items:center;gap:10px;border:0;text-align:left;background:transparent;border-radius:10px;min-height:38px;padding:6px 8px}.opt[aria-pressed=true]{background:var(--bg2);font-weight:600}
 .tg{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px}.tg small{display:block;color:var(--mut)}
@@ -548,14 +548,14 @@ table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;p
 .cur{display:inline-block;width:7px;height:1em;background:var(--fg);vertical-align:-2px;margin-left:2px;animation:d 1s infinite}
 @media(max-width:760px){aside{position:fixed;z-index:30;inset:0 auto 0 0;height:100%;box-shadow:var(--sh)}aside.closed{margin-left:-290px}#hero{padding-top:10vh}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
-#sp{margin-left:0;right:0;left:auto;max-width:calc(100vw - 32px)} #mm{max-height:min(60vh,calc(100dvh - 180px))} #scroll{overflow-anchor:none;overscroll-behavior:contain} .widget{border:1px solid var(--line);border-radius:16px;background:var(--bg2);padding:16px;margin:12px 0;display:grid;gap:10px}.widget label{display:flex;gap:10px;align-items:center}.widget label.done span{text-decoration:line-through;opacity:.6}.widget button{justify-self:start}.widget .choices{display:flex;gap:8px;flex-wrap:wrap}.limits{display:flex;gap:10px;padding:8px}.limits label{flex:1;font-size:12px;color:var(--mut)}.limits input{width:100%;margin-top:4px} .comp{backdrop-filter:blur(12px)}
+ #mm{max-height:min(60vh,calc(100dvh - 180px))} #scroll{overflow-anchor:none;overscroll-behavior:contain} .widget{border:1px solid var(--line);border-radius:16px;background:var(--bg2);padding:16px;margin:12px 0;display:grid;gap:10px}.widget label{display:flex;gap:10px;align-items:center}.widget label.done span{text-decoration:line-through;opacity:.6}.widget button{justify-self:start}.widget .choices{display:flex;gap:8px;flex-wrap:wrap}.limits{display:flex;gap:10px;padding:8px}.limits label{flex:1;font-size:12px;color:var(--mut)}.limits input{width:100%;margin-top:4px} .comp{backdrop-filter:blur(12px)}
 #msgs .b blockquote{border-inline-start:3px solid var(--acc);margin:1em 0;padding:.45em 1em;color:var(--mut);background:var(--bg2);border-radius:0 12px 12px 0}
 #msgs .b blockquote p:last-child{margin-bottom:0}
 #msgs .b ol ol,#msgs .b ul ul,#msgs .b ol ul,#msgs .b ul ol{margin:.2em 0}
 #msgs .b li{margin:.22em 0}
 #msgs .b img{max-width:100%;height:auto;border-radius:10px}
 #msgs .b hr{border:0;border-top:1px solid var(--line);margin:1.4em 0}
-#sp .tg:hover{background:var(--bg2);border-radius:10px}.limits{border-block:1px solid var(--line);margin-block:4px}.widget form[data-question]{display:flex;gap:8px;flex-wrap:wrap}.widget form[data-question] input{flex:1;min-width:130px}.widget label input{accent-color:var(--acc)}
+.response-body .tg:hover{background:var(--bg2);border-radius:10px}.limits{border-block:1px solid var(--line);margin-block:4px}.widget form[data-question]{display:flex;gap:8px;flex-wrap:wrap}.widget form[data-question] input{flex:1;min-width:130px}.widget label input{accent-color:var(--acc)}
 .md-table{overflow:auto;border:1px solid var(--line);border-radius:12px;margin:1em 0}
 .md-table th,.md-table td{padding:9px 12px}.md-table th,.md-table tr:nth-child(even){background:var(--bg2)}.md-table tr:last-child td{border-bottom:0}
 .task-list-item{list-style:none}.task-list-item-checkbox{margin-inline-end:.45em;accent-color:var(--acc)}
@@ -609,10 +609,10 @@ main{height:100%;min-height:0;background:var(--bg)}
 #mode-strip button{min-height:28px;padding:0 8px;background:var(--accent-soft);font-size:11px;color:var(--fg);border-color:transparent}
 #mode-strip span{margin-left:3px}
 .pop{background:var(--surface);border-radius:15px;overscroll-behavior:contain;box-shadow:0 14px 40px #172b2440}
-#mm,#sp{max-height:min(62dvh,460px);max-width:calc(100vw - 20px)}
+#mm,
 #model-search{position:sticky;top:0;background:var(--surface);z-index:2;margin-bottom:5px}
-#sp h2,.dh h2{font-size:16px;margin:0}#sp h2{padding:5px 8px}
-#sp .tg{border-radius:8px;min-height:46px}
+.dh h2{font-size:16px;margin:0}
+.response-body .tg{border-radius:8px;min-height:46px}
 dialog{background:var(--surface);box-shadow:var(--sh);max-height:calc(100dvh - 24px);width:min(620px,calc(100% - 24px))}
 .db{max-height:calc(85dvh - 52px);overscroll-behavior:contain}
 .prompt-body{display:grid;gap:14px}.prompt-body p{margin:0;color:var(--mut)}
@@ -628,12 +628,32 @@ dialog{background:var(--surface);box-shadow:var(--sh);max-height:calc(100dvh - 2
   aside{height:100dvh;width:min(280px,84vw);z-index:41}
   aside.closed{margin-left:-85vw}
   #nav-scrim:not(.hide){display:block;position:fixed;inset:0;z-index:40;background:#101b1490;border:0;border-radius:0}
-  #mm,#sp{position:fixed;left:10px;right:10px;bottom:max(10px,env(safe-area-inset-bottom));width:auto;max-height:70dvh;z-index:32}
+  #mm,
   #draft-count{display:none}.m.a>.ico{width:27px;height:27px}
 }
 @media(max-width:450px){.starters{gap:6px;margin-top:17px}.starter{padding:8px 21px 8px 9px}.starter span{right:6px;top:7px}.starter small{font-size:11px}.m{gap:7px}.bar{gap:3px}.top{gap:7px}#prompt-open{padding-inline:7px}}
-@media(max-height:530px){#hero{padding-top:22px}.starter{padding-block:7px}#mm,#sp{max-height:65dvh}}
+@media(max-height:530px){#hero{padding-top:22px}.starter{padding-block:7px}#mm,}
 
+
+.viewport-dialog {
+  position:fixed; inset:var(--visible-y,50%) auto auto var(--visible-x,50%);
+  transform:translate(-50%,-50%); margin:0;
+  width:min(540px,calc(var(--visible-width,100vw) - 24px));
+  max-height:calc(var(--visible-height,100dvh) - max(24px,env(safe-area-inset-top) + env(safe-area-inset-bottom)));
+  overflow:hidden;
+}
+.viewport-dialog[open] { display:flex; flex-direction:column; }
+.viewport-dialog > .dh { flex:none; padding:10px 16px; }
+.viewport-dialog > .db { flex:1 1 auto; min-height:0; max-height:none; overflow:auto; padding:12px 16px; scroll-padding:12px; }
+.viewport-dialog > footer { border-bottom:0; border-top:1px solid var(--line); }
+.viewport-dialog .response-footer button:last-child { margin-left:auto; }
+.response-body .limits { padding-inline:8px; }
+@media(max-height:430px){
+  #side{overflow-y:auto;gap:7px;padding-block:10px}
+  #chats{min-height:42px}
+  .viewport-dialog > .dh { padding-block:5px; }
+  .viewport-dialog > .db { padding-block:8px; }
+}
 </style>
 </head>
 <body>
@@ -672,13 +692,6 @@ dialog{background:var(--surface);box-shadow:var(--sh);max-height:calc(100dvh - 2
     <div class="dock">
       <div class="comp">
         <div class="pop hide" id="mm" role="dialog" aria-label="Choose a model"></div>
-        <div class="pop hide" id="sp" role="dialog" aria-label="Response settings"><h2>Response settings</h2>
-          <label class="tg"><span>Web research<small>Search and read live pages</small></span><input type="checkbox" class="sw" id="o-web"></label>
-          <label class="tg"><span>Deep analysis<small>Separate evidence and analysis pass</small></span><input type="checkbox" class="sw" id="o-deep"></label>
-          <label class="tg"><span>Thinking<small>Controls provider reasoning when available</small></span><input type="checkbox" class="sw" id="o-think"></label>
-          <div class="tg"><span>Response length<small>Auto adapts to each request</small></span><select id="o-len" aria-label="Response length"><option value="auto">Auto</option><option value="short">Short</option><option value="long">Long</option><option value="xlong">Extra long</option></select></div>
-          <div class="limits"><label>Context budget (approx. tokens)<input type="number" id="o-context" min="1024" max="200000" step="1024" value="32000"></label><label>Max output tokens<input type="number" id="o-output" min="256" max="32000" step="256" value="8192"></label></div>
-        </div>
         <div id="mode-strip" aria-label="Active response settings"></div>
         <div class="chip" id="files"></div>
         <textarea id="in" rows="1" placeholder="Message Astheral…" aria-label="Message"></textarea>
@@ -686,7 +699,7 @@ dialog{background:var(--surface);box-shadow:var(--sh);max-height:calc(100dvh - 2
           <button class="icon" id="skills" title="Skills" aria-label="Skills">✦</button><button class="icon" id="att" aria-label="Attach text or code file"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
           <input type="file" id="fi" class="hide" multiple>
           <button id="mb" aria-controls="mm" aria-haspopup="dialog" aria-expanded="false"></button>
-          <button class="icon" id="ob" aria-label="Response settings" aria-controls="sp" aria-expanded="false" aria-haspopup="dialog"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg></button>
+          <button class="icon" id="ob" aria-label="Response settings" aria-controls="response-dlg" aria-expanded="false" aria-haspopup="dialog"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg></button>
           <span class="sp"></span><span class="meta" id="draft-count"></span>
           <button class="primary send" id="go" aria-label="Send"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
         </div>
@@ -694,8 +707,19 @@ dialog{background:var(--surface);box-shadow:var(--sh);max-height:calc(100dvh - 2
     </div>
   </main>
 </div>
-<dialog id="prompt-dlg" aria-labelledby="prompt-title">
-  <header class="dh"><h2 id="prompt-title">Instructions</h2><button id="prompt-close" class="ghost" aria-label="Close instructions">✕</button></header>
+<dialog id="response-dlg" class="viewport-dialog" aria-labelledby="response-title">
+  <header class="dh"><h2 id="response-title">Response settings</h2><button id="response-close" class="ghost" aria-label="Close response settings" autofocus>✕</button></header>
+  <div class="db response-body">
+          <label class="tg"><span>Web research<small>Search and read live pages</small></span><input type="checkbox" class="sw" id="o-web"></label>
+          <label class="tg"><span>Deep analysis<small>Separate evidence and analysis pass</small></span><input type="checkbox" class="sw" id="o-deep"></label>
+          <label class="tg"><span>Thinking<small>Controls provider reasoning when available</small></span><input type="checkbox" class="sw" id="o-think"></label>
+          <div class="tg"><span>Response length<small>Auto adapts to each request</small></span><select id="o-len" aria-label="Response length"><option value="auto">Auto</option><option value="short">Short</option><option value="long">Long</option><option value="xlong">Extra long</option></select></div>
+          <div class="limits"><label>Context budget (approx. tokens)<input type="number" id="o-context" min="1024" max="200000" step="1024" value="32000"></label><label>Max output tokens<input type="number" id="o-output" min="256" max="32000" step="256" value="8192"></label></div>
+  </div>
+  <footer class="dh response-footer"><button id="response-instructions" type="button">Instructions</button><button id="response-done" class="primary" type="button">Done</button></footer>
+</dialog>
+<dialog id="prompt-dlg" class="viewport-dialog" aria-labelledby="prompt-title">
+  <header class="dh"><h2 id="prompt-title">Instructions</h2><button id="prompt-close" class="ghost" autofocus aria-label="Close instructions">✕</button></header>
   <div class="db prompt-body">
     <p>Changes apply on your next message in any chat, including this one.</p>
     <section class="prompt-section">
@@ -708,8 +732,8 @@ dialog{background:var(--surface);box-shadow:var(--sh);max-height:calc(100dvh - 2
       <details><summary>Read the Astheral defaults</summary><pre id="builtin-text"></pre></details>
     </section>
     <details class="prompt-section"><summary>What else does the model receive?</summary><p>Each request includes the selected model ID, provider, username, local time, available skills and recent chat history. It also includes search results when a search runs. Turning off Astheral defaults leaves these features and your instructions available.</p></details>
-    <footer class="prompt-footer"><span id="prompt-status" class="meta" role="status"></span><button id="prompt-done" class="primary">Done</button></footer>
   </div>
+  <footer class="dh prompt-footer"><span id="prompt-status" class="meta" role="status"></span><button id="prompt-done" class="primary">Done</button></footer>
 </dialog>
 <dialog id="dlg" aria-labelledby="dt"><div class="dh"><span id="dt"></span><button class="ghost" id="dx" aria-label="Close">✕</button></div><div class="db" id="dbd"></div></dialog>
 
@@ -2245,33 +2269,60 @@ $('#mm').onclick=async e=>{const rm=e.target.closest('[data-rm]');
 $('#mm').oninput=e=>{if(e.target.id==='cm'){const g=guess(e.target.value.trim());if(g)$('#cp').value=g}};
 $('#mm').onkeydown=e=>{if(e.key==='Enter'&&e.target.id==='cm'){e.preventDefault();addCustom()}};
 function closePops(restore=false){
-  for(const [id,trigger] of [['mm','mb'],['sp','ob']]){
-    const panel=$('#'+id),button=$('#'+trigger);
-    if(restore&&!panel.classList.contains('hide'))button.focus({preventScroll:true});
-    panel.classList.add('hide');button.setAttribute('aria-expanded','false');
-  }
+  const panel=$('#mm'),button=$('#mb');
+  if(restore&&!panel.classList.contains('hide'))button.focus({preventScroll:true});
+  panel.classList.add('hide');button.setAttribute('aria-expanded','false');
 }
-function openPanel(id,trigger){
-  const panel=$('#'+id),open=panel.classList.contains('hide');
+$('#mb').onclick=e=>{
+  e.stopPropagation();
+  const panel=$('#mm'),open=panel.classList.contains('hide');
   closePops();
   if(!open)return;
-  if(id==='mm')renderMenu();
+  renderMenu();
   panel.classList.remove('hide');
-  $('#'+trigger).setAttribute('aria-expanded','true');
-  if(id!=='mm'||!smallNav.matches)panel.querySelector('input,button')?.focus({preventScroll:true});
-}
-$('#mb').onclick=e=>{e.stopPropagation();openPanel('mm','mb')};
-$('#ob').onclick=e=>{e.stopPropagation();openPanel('sp','ob')};
+  $('#mb').setAttribute('aria-expanded','true');
+  if(!smallNav.matches)panel.querySelector('input')?.focus({preventScroll:true});
+};
 document.addEventListener('click',e=>{if(!e.target.closest('.pop'))closePops()});
 document.addEventListener('keydown',e=>{
-  if(e.key!=='Escape'||$('#prompt-dlg').open||$('#dlg').open)return;
-  if(!$('#mm').classList.contains('hide')||!$('#sp').classList.contains('hide'))closePops(true);
+  if(e.key!=='Escape'||document.querySelector('dialog[open]'))return;
+  if(!$('#mm').classList.contains('hide'))closePops(true);
   else if(smallNav.matches&&!$('#side').classList.contains('closed')){setSidebar(false);$('#tog').focus()}
 });
-const promptDialog=$('#prompt-dlg');
-$('#prompt-open').onclick=()=>{closePops();promptDialog.showModal()};
-$('#prompt-close').onclick=()=>promptDialog.close();
-$('#prompt-done').onclick=()=>promptDialog.close();
+const promptDialog=$('#prompt-dlg'),responseDialog=$('#response-dlg');
+function fitSettingsDialogs(){
+  const viewport=window.visualViewport;
+  if(!viewport)return;
+  for(const dialog of [promptDialog,responseDialog]){
+    dialog.style.setProperty('--visible-width',viewport.width+'px');
+    dialog.style.setProperty('--visible-height',viewport.height+'px');
+    dialog.style.setProperty('--visible-x',(viewport.offsetLeft+viewport.width/2)+'px');
+    dialog.style.setProperty('--visible-y',(viewport.offsetTop+viewport.height/2)+'px');
+  }
+}
+window.visualViewport?.addEventListener('resize',fitSettingsDialogs);
+window.visualViewport?.addEventListener('scroll',fitSettingsDialogs);
+window.addEventListener('resize',fitSettingsDialogs);
+function showSettingsDialog(dialog){
+  closePops();
+  fitSettingsDialogs();
+  dialog.showModal();
+}
+$('#ob').onclick=()=>{
+  showSettingsDialog(responseDialog);
+  $('#ob').setAttribute('aria-expanded','true');
+};
+$('#response-close').onclick=$('#response-done').onclick=()=>responseDialog.close();
+responseDialog.addEventListener('close',()=>{
+  $('#ob').setAttribute('aria-expanded','false');
+  flushSettings();
+});
+$('#response-instructions').onclick=()=>{
+  responseDialog.close();
+  showSettingsDialog(promptDialog);
+};
+$('#prompt-open').onclick=()=>showSettingsDialog(promptDialog);
+$('#prompt-close').onclick=$('#prompt-done').onclick=()=>promptDialog.close();
 function setPromptStatus(text){$('#prompt-status').textContent=text}
 function renderModes(){
   $('#prompt-dot').classList.toggle('on',Boolean($('#o-sys').value.trim()||$('#o-built').checked));
