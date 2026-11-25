@@ -960,7 +960,7 @@ if (isset($_GET['a'])) {
     $s = q('SELECT system_prompt,provider,model,web,deep,think,length,builtin FROM settings WHERE user_id=?', [$uid])->fetch();
     $cl = strip_builtin((string)$s['system_prompt']);
     if ($cl !== $s['system_prompt']) { q('UPDATE settings SET system_prompt=? WHERE user_id=?', [$cl, $uid]); $s['system_prompt'] = $cl; }
-    out(['csrf' => $_SESSION['csrf'], 'me' => $me, 'providers' => $pub, 'settings'=>$s,'builtin_prompt'=>SYS_PROMPT,'thinking_rules'=>THINKING_PATTERNS,'legacy_models'=>LEGACY_PRESETS,'default_model'=>DEFAULT_CHAT_MODEL,
+    out(['csrf' => $_SESSION['csrf'], 'me' => $me, 'providers' => $pub, 'settings'=>$s,'builtin_prompt'=>SYS_PROMPT,'builtin_provider_guidance'=>PROVIDER_GUIDANCE,'thinking_rules'=>THINKING_PATTERNS,'legacy_models'=>LEGACY_PRESETS,'default_model'=>DEFAULT_CHAT_MODEL,
       'thinking_modes'=>q('SELECT provider,model,mode FROM model_thinking WHERE user_id=?',[$uid])->fetchAll(),
       'keys' => q('SELECT provider FROM api_keys WHERE user_id=?', [$uid])->fetchAll(PDO::FETCH_COLUMN),
       'custom' => q('SELECT provider,model FROM custom_models WHERE user_id=? ORDER BY created', [$uid])->fetchAll(),
@@ -1496,6 +1496,10 @@ dialog{background:var(--surface);box-shadow:var(--sh);max-height:calc(100dvh - 2
 .prompt-section .tg{padding:0 0 8px;font-weight:650}.prompt-section small{font-weight:400}
 .prompt-section summary{cursor:pointer;font-weight:600}.prompt-section pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;font-size:13px;color:var(--mut);margin-bottom:0}
 .prompt-section>p{margin-top:6px}
+.builtin-provider-note,.builtin-directory{border-top:1px solid var(--line);margin-top:12px;padding-top:10px}
+.builtin-provider-note h3,.builtin-directory dt{margin:0;font-size:13px;font-weight:650}
+.builtin-provider-note p,.builtin-directory dd{margin:4px 0 0;color:var(--mut);font-size:13px}
+.builtin-directory dt:not(:first-child){margin-top:8px}
 .prompt-footer{display:flex;justify-content:space-between;align-items:center;gap:12px}.prompt-footer button{margin-left:auto}
 #o-sys{background:var(--bg);min-height:96px;resize:vertical}
 #nav-scrim{display:none}
@@ -1773,7 +1777,19 @@ main { overflow:hidden; }
     </section>
     <section class="prompt-section">
       <label class="tg"><span>Use Astheral defaults<small>Optional identity and response guidance</small></span><input type="checkbox" class="sw" id="o-built"></label>
-      <details><summary>Read the Astheral defaults</summary><pre id="builtin-text"></pre></details>
+      <details id="builtin-preview">
+        <summary>Read the Astheral defaults</summary>
+        <pre id="builtin-text"></pre>
+        <div class="builtin-provider-note">
+          <h3 id="builtin-provider-title"></h3>
+          <p id="builtin-provider-text"></p>
+        </div>
+        <details class="builtin-directory">
+          <summary>Other provider guidance</summary>
+          <p class="hint">The model receives these notes when your request calls for them.</p>
+          <dl id="builtin-provider-list"></dl>
+        </details>
+      </details>
     </section>
     <details class="prompt-section"><summary>What else does the model receive?</summary><p>Each request includes the selected model ID, provider, username, local time, available skills and recent chat history. It also includes search results when a search runs. Turning off Astheral defaults leaves these features and your instructions available.</p></details>
   </div>
@@ -3536,7 +3552,20 @@ $('#b-exp').onclick=()=>{const l=msgs.filter(m=>!m.err);if(!l.length)return;cons
   const md=`# ${t}\n\n`+l.map(m=>`## ${m.role==='user'?'You':'Astheral'+(m.model?' ('+m.model+')':'')}\n\n${m.content}\n`).join('\n');
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([md],{type:'text/markdown'}));a.download=t.replace(/[^\w-]+/g,'_').slice(0,40)+'.md';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)};
 /* model + options */
-function renderModel(){const s=S.settings;$('#mb').innerHTML=`${ico(s.provider)} <span>${esc(s.model)}</span> <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>`;$('#mb').style.cssText='display:flex;align-items:center;gap:8px;max-width:60vw';$('#mb').querySelector('span:nth-child(2)').style.cssText='overflow:hidden;text-overflow:ellipsis;white-space:nowrap'}
+function renderBuiltinProvider(provider){
+  const notes=S.builtin_provider_guidance||{};
+  const title=$('#builtin-provider-title'),text=$('#builtin-provider-text'),list=$('#builtin-provider-list');
+  title.textContent='Current provider · '+S.providers[provider].name;
+  text.textContent=notes[provider]||'';
+  const entries=Object.entries(notes).filter(([id])=>id!==provider&&S.providers[id]);
+  list.replaceChildren(...entries.flatMap(([id,note])=>{
+    const name=document.createElement('dt'),description=document.createElement('dd');
+    name.textContent=S.providers[id].name;
+    description.textContent=note;
+    return [name,description];
+  }));
+}
+function renderModel(){const s=S.settings;renderBuiltinProvider(s.provider);$('#mb').innerHTML=`${ico(s.provider)} <span>${esc(s.model)}</span> <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>`;$('#mb').style.cssText='display:flex;align-items:center;gap:8px;max-width:60vw';$('#mb').querySelector('span:nth-child(2)').style.cssText='overflow:hidden;text-overflow:ellipsis;white-space:nowrap'}
 const guess=m=>{
   m=m.toLowerCase();
   if(m.startsWith('@cf/'))return 'cloudflare';
