@@ -1,9 +1,0 @@
-{
-  "size": 8841592,
-  "tensor_count": 336,
-  "all_tensors_finite": true,
-  "lora_B_tensors": 168,
-  "nonzero_lora_B_tensors": 168,
-  "sha256": "5feb9241c6a00ef027ce3fb9fec328d7245a6d97e961cd67ec3814575b2c0ae4",
-  "git_blob_sha1": "d90a73652e2b4324766cf87f853bc97e03bf466b"
-}
